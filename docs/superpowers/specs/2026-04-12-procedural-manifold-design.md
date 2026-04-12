@@ -57,7 +57,7 @@ The seed is combined with a system capability probe (local only, no network) bef
 - Max texture size
 - Available memory hint
 
-The probe output selects a rendering tier (see Section 5) and acts as a capability mask. It does not alter manifold geometry.
+The probe output selects a rendering tier (see Section 6) and acts as a capability mask. It does not alter manifold geometry.
 
 ### Manifold Mathematics
 
@@ -148,9 +148,24 @@ Modules are static, handwritten descriptors. No copy is dynamically generated.
 interface ContentModule {
   id:            string;
   type:          'work' | 'company' | 'tech' | 'origin';
-  render_hints:  RenderHints;   // how each rendering tier should present this
-  content:       unknown;       // text, structured data, etc.
-  interactions:  Interaction[]; // responses to ObjectOps targeting this module
+  render_hints:  RenderHints;
+  content:       string | Record<string, string>;  // prose or structured key/value pairs
+  interactions:  Interaction[];
+}
+
+interface RenderHints {
+  tier1: { splat_scale: number; sdf_morph: boolean };
+  tier2: { warp_intensity: number; sdf_morph: boolean };
+  tier3: { ascii_density: number; border_char: string };
+}
+
+// An Interaction describes what happens when an ObjectOp targets this module.
+// effect: what changes in the manifold (force_field delta, viewport nudge, etc.)
+// display: what the rendering stack shows in response
+interface Interaction {
+  trigger:  'object_op';
+  effect:   ForceOp | ViewportOp | null;
+  display:  string;  // short label shown by the rendering stack on activation
 }
 ```
 
@@ -223,6 +238,8 @@ Sits between the ViewportManager and the rendering stack. As new modules enter t
 - Ensures the experience feels authored rather than purely mechanical
 
 The orchestrator does not generate content — it only controls the timing and manner of reveals.
+
+In Tier 3 (ASCII), the orchestrator sequences character-field transitions instead of SDF morphs — cells expand outward from the module's position as it enters the viewport, using pretext's animation primitives.
 
 ---
 
