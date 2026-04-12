@@ -1,0 +1,241 @@
+:root {
+  color-scheme: dark;
+  --base-bg: #002b36;
+  --base-panel: #073642;
+  --base-border: #0f3c4b;
+  --text: #eee8d5;
+  --muted: #93a1a1;
+  --accent: #2aa198;
+  --accent-strong: #b58900;
+  --danger: #dc322f;
+  --focus: #cb4b16;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  --mono: "SFMono-Regular", "JetBrains Mono", "Fira Code", "Menlo", "Consolas",
+    "Liberation Mono", monospace;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--base-bg);
+  color: var(--text);
+  font-family: var(--mono);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover,
+a:focus-visible {
+  color: var(--accent-strong);
+  text-decoration: underline;
+  text-decoration-thickness: 0.1em;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 12px;
+  padding: 8px 12px;
+  background: var(--base-panel);
+  color: var(--text);
+  border: 1px solid var(--base-border);
+  z-index: 100;
+  transition: top 0.15s ease;
+}
+
+.skip-link:focus-visible {
+  top: 12px;
+}
+
+.page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+  display: grid;
+  gap: 16px;
+}
+
+.header {
+  border: 1px solid var(--base-border);
+  background: linear-gradient(135deg, var(--base-panel), rgba(7, 54, 66, 0.65));
+  padding: 16px;
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 12px;
+}
+
+.brand-block {
+  display: grid;
+  gap: 4px;
+}
+
+.brand-title {
+  font-size: 1.4rem;
+  letter-spacing: 0.02em;
+}
+
+.brand-subtitle {
+  color: var(--muted);
+  margin: 0;
+}
+
+.nav ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+}
+
+.nav a {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--base-border);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.main {
+  display: grid;
+  gap: 16px;
+}
+
+.footer {
+  color: var(--muted);
+  font-size: 0.95rem;
+  border-top: 1px solid var(--base-border);
+  padding-top: 12px;
+}
+
+.stack {
+  display: grid;
+}
+
+.gap {
+  gap: 16px;
+}
+
+.panel {
+  background: rgba(7, 54, 66, 0.6);
+  border: 1px solid var(--base-border);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: var(--shadow);
+}
+
+.grid.two {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.card {
+  border: 1px solid var(--base-border);
+  border-radius: 10px;
+  padding: 12px;
+  background: rgba(0, 43, 54, 0.7);
+}
+
+.h1 {
+  margin: 0 0 8px;
+  font-size: clamp(1.6rem, 2vw, 2rem);
+}
+
+.h2 {
+  margin: 0 0 6px;
+  font-size: 1.25rem;
+}
+
+.h3 {
+  margin: 0 0 4px;
+  font-size: 1.1rem;
+}
+
+.lede {
+  margin: 0 0 14px;
+  max-width: 72ch;
+}
+
+.eyebrow {
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  margin: 0 0 4px;
+}
+
+.list {
+  padding-left: 18px;
+  margin: 0;
+}
+
+.inline-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.input {
+  width: min(460px, 100%);
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--base-border);
+  background: rgba(0, 43, 54, 0.8);
+  color: var(--text);
+  font-family: var(--mono);
+}
+
+.input:focus-visible {
+  border-color: var(--focus);
+}
+
+.button {
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--base-border);
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  color: #002b36;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.button:hover,
+.button:focus-visible {
+  box-shadow: 0 0 0 3px rgba(43, 255, 208, 0.2);
+}
+
+code {
+  background: rgba(7, 54, 66, 0.9);
+  padding: 2px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--base-border);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
