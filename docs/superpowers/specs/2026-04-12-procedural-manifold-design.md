@@ -14,8 +14,8 @@ The system is structured around a single pure function — `ManifoldFn(seed, coo
 
 ```
 load
- └─ SeedGen ──────────────────────────────────────────────┐
-     │                                                      │
+ └─ SeedGen ───────────────────────────────────────────────┐
+     │                                                     │
      ├─ ManifoldFn(seed, coords, mutations) → Descriptor   │
      │   ├─ curvature_tensor                               │
      │   ├─ christoffel_symbols                            │
@@ -23,11 +23,11 @@ load
      │   ├─ content_module_id                              │
      │   ├─ color_params                                   │
      │   └─ force_field                                    │
-     │                                                      │
-     ├─ InputMapper(seed) → { key/event → ManifoldOp }    │
-     │                                                      │
-     └─ Origin at [0,0,0] → viewport start                │
-                                                            │
+     │                                                     │
+     ├─ InputMapper(seed) → { key/event → ManifoldOp }     │
+     │                                                     │
+     └─ Origin at [0,0,0] → viewport start                 │
+                                                           │
 input events ──► InputMapper ──► ViewportManager ──────────┘
                                       │
                               ManifoldFn(seed, visible_coords, mutations)
@@ -243,7 +243,23 @@ In Tier 3 (ASCII), the orchestrator sequences character-field transitions instea
 
 ---
 
-## 8. Technology Stack
+## 8. Origin Anchor
+
+The origin is the one fixed point in an otherwise fully stochastic system. It is always placed at geodesic coordinates `[0,0,0]` and is always the first thing the user sees.
+
+The origin has three responsibilities:
+
+**Identification** — it presents the site (`theos.sh`) and invites exploration. This content is handwritten and does not participate in the hash-based module selection used everywhere else. The origin module has `type: 'origin'` and is excluded from the content registry's random placement.
+
+**System probe** — before the manifold is rendered, the origin phase runs a local-only capability check. No data leaves the device. The probe result selects the rendering tier and is folded into the seed derivation as a capability mask. If the probe determines Tier 3, the origin itself is rendered in ASCII via pretext.
+
+**Viewport initialization** — once the probe completes and the tier is selected, the ViewportManager initializes at `[0,0,0]`, the frontier is seeded with the origin's immediate neighbors, and the input mapper is derived from the seed. The session is live.
+
+The origin is not navigable away from in the traditional sense — it remains at `[0,0,0]` in the manifold. If the user navigates back to that coordinate, they see it again.
+
+---
+
+## 9. Technology Stack
 
 | Concern                  | Technology                        |
 |--------------------------|-----------------------------------|
