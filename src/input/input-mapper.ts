@@ -23,24 +23,28 @@ export class InputMapper {
   constructor(seed: Seed) {
     // Derive a sub-seed with a domain tag so it doesn't alias the manifold PRNG stream
     const subSeed = new Uint8Array(seed);
-    subSeed[0] ^= 0xAB;
+    const b0 = subSeed[0] ?? 0;
+    subSeed[0] = b0 ^ 0xAB;
     const prng = new Xoshiro256(subSeed);
 
     this.keyMap = new Map();
     this.mouseMap = new Map();
 
     for (const key of MOVE_KEYS) {
-      const kind = VIEWPORT_KINDS[Math.floor(prng.nextFloat() * VIEWPORT_KINDS.length)]!;
+      const idx = Math.floor(prng.nextFloat() * VIEWPORT_KINDS.length);
+      const kind = (VIEWPORT_KINDS[idx] ?? 'translate');
       this.keyMap.set(key, { op_class: 'ViewportOp', viewport_kind: kind });
     }
 
     for (const key of NUMBER_KEYS) {
-      const criteria = OBJECT_CRITERIA[Math.floor(prng.nextFloat() * OBJECT_CRITERIA.length)]!;
+      const idx = Math.floor(prng.nextFloat() * OBJECT_CRITERIA.length);
+      const criteria = (OBJECT_CRITERIA[idx] ?? 'nearest');
       this.keyMap.set(key, { op_class: 'ObjectOp', object_criteria: criteria });
     }
 
     for (const event of MOUSE_EVENTS) {
-      const opClass = OP_CLASSES[Math.floor(prng.nextFloat() * OP_CLASSES.length)]!;
+      const idx = Math.floor(prng.nextFloat() * OP_CLASSES.length);
+      const opClass = (OP_CLASSES[idx] ?? 'ForceOp');
       this.mouseMap.set(event, { op_class: opClass });
     }
   }

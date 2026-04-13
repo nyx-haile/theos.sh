@@ -37,16 +37,24 @@ function metricDerivative(
 ): number {
   const plus = [...coords] as GeodesicCoords;
   const minus = [...coords] as GeodesicCoords;
-  plus[k] += H;
-  minus[k] -= H;
+  const pkVal = plus[k] ?? 0;
+  const mkVal = minus[k] ?? 0;
+  plus[k] = pkVal + H;
+  minus[k] = mkVal - H;
   return (metricComponent(plus, i, j, noiseField) - metricComponent(minus, i, j, noiseField)) / (2 * H);
 }
 
 function invertDiagonalMetric(g: number[][]): number[][] {
+  const row0 = g[0] ?? [1, 1, 1];
+  const row1 = g[1] ?? [1, 1, 1];
+  const row2 = g[2] ?? [1, 1, 1];
+  const g00 = row0[0] ?? 1;
+  const g11 = row1[1] ?? 1;
+  const g22 = row2[2] ?? 1;
   return [
-    [1 / g[0]![0]!, 0, 0],
-    [0, 1 / g[1]![1]!, 0],
-    [0, 0, 1 / g[2]![2]!],
+    [1 / g00, 0, 0],
+    [0, 1 / g11, 0],
+    [0, 0, 1 / g22],
   ];
 }
 
