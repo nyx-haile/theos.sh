@@ -8,7 +8,7 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:integration": "vitest run --config vitest.integration.config.ts",
-    "test:visual": "vitest run tests/visual",
+    "test:visual": "vitest run --config vitest.visual.config.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
