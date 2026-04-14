@@ -49,12 +49,12 @@ export const jitterEffect: Effect = {
           sources.push({
             centerRow: Math.floor(prng.nextFloat() * rows),
             spanRows:  1 + Math.floor(prng.nextFloat() * 4),
-            p1: 0.4 + prng.nextFloat() * 1.6,
-            p2: 1.7 + prng.nextFloat() * 7.0,
+            p1: 0.15 + prng.nextFloat() * 0.45,
+            p2: 0.5  + prng.nextFloat() * 2.5,
             phase1: prng.nextFloat() * Math.PI * 2,
             phase2: prng.nextFloat() * Math.PI * 2,
-            shift: (prng.nextFloat() - 0.5) * 8,
-            amp:   0.3 + prng.nextFloat() * 0.7,
+            shift: (prng.nextFloat() - 0.5) * 14,
+            amp:   0.4 + prng.nextFloat() * 0.8,
           });
         }
       }
@@ -70,13 +70,14 @@ export const jitterEffect: Effect = {
       for (const src of sources) {
         const a = Math.sin(src.phase1 + (Math.PI * 2 * tSec) / src.p1);
         const b = Math.sin(src.phase2 + (Math.PI * 2 * tSec) / src.p2);
-        const amp = Math.abs(a * b) * src.amp;
+        const signed = a * b; // ∈ [-1, 1] — sign alternates with beat
+        const amp = Math.abs(signed) * src.amp;
         if (amp < 0.25) continue;
         const rowStart = Math.max(0, src.centerRow - src.spanRows);
         const rowEnd   = Math.min(activeRows.length - 1, src.centerRow + src.spanRows);
         for (let r = rowStart; r <= rowEnd; r++) {
           activeRows[r] = 1;
-          shiftRows[r]  = Math.round(src.shift * amp);
+          shiftRows[r]  = Math.round(src.shift * signed * src.amp);
         }
         busCtx.emit('glitch:burst', { rowStart, rowEnd, intensity: amp });
       }

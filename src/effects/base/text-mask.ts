@@ -4,6 +4,21 @@ import { gateParam } from '../gates';
 const MASK_SCALE = 4;
 const LINES_STACKED = ['the', ' os', '.sh'];
 const LINE_SINGLE = 'theos.sh';
+const CHAR_ADVANCE = 0.6; // monospace advance ratio
+
+function computeLayout(cols: number, rows: number): { stacked: boolean; fontSize: number } {
+  const canvasW = cols * MASK_SCALE;
+  const canvasH = rows * MASK_SCALE;
+  const singleByW = (canvasW * 0.9) / (LINE_SINGLE.length * CHAR_ADVANCE);
+  const singleByH = canvasH * 0.56;
+  const single = Math.min(singleByW, singleByH);
+  const stackedByW = (canvasW * 0.9) / (3 * CHAR_ADVANCE);
+  const stackedByH = (canvasH * 0.9) / LINES_STACKED.length;
+  const stacked = Math.min(stackedByW, stackedByH);
+  return stacked > single
+    ? { stacked: true,  fontSize: Math.max(6, Math.floor(stacked)) }
+    : { stacked: false, fontSize: Math.max(6, Math.floor(single))  };
+}
 
 function drawMaskCanvas(cols: number, rows: number, weight: 'normal' | 'bold'): Uint8Array {
   const w = cols, h = rows;
@@ -13,8 +28,7 @@ function drawMaskCanvas(cols: number, rows: number, weight: 'normal' | 'bold'): 
   const g = canvas.getContext('2d')!;
   g.clearRect(0, 0, canvas.width, canvas.height);
   g.fillStyle = '#fff';
-  const stacked = w < 40;
-  const fontSize = stacked ? Math.floor(h * MASK_SCALE * 0.28) : Math.floor(h * MASK_SCALE * 0.56);
+  const { stacked, fontSize } = computeLayout(cols, rows);
   g.font = `${weight} ${fontSize}px monospace`;
   g.textAlign = 'center';
   g.textBaseline = 'middle';
