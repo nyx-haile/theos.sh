@@ -184,19 +184,28 @@ export default function App() {
         }
       }
 
-      // Build randomized list of text cell indices (seed-deterministic)
-      const textCellIndices: number[] = [];
+      // Assign each text cell a reveal order based on per-cell hash (position-independent)
+      const cellRevealOrder: Map<number, number> = new Map();
+      let totalTextCells = 0;
       for (let i = 0; i < rows * cols; i++) {
         if ((layerMask[i] ?? 0) > 0) {
-          textCellIndices.push(i);
+          const row = Math.floor(i / cols);
+          const col = i % cols;
+          // Strong hash: mix seed + col + row to get reveal order value
+          let h = 5381;
+          for (let j = 0; j < seed.length; j++) h = (Math.imul(h, 33) ^ seed[j]!) >>> 0;
+          h = (Math.imul(h, 33) ^ col) >>> 0;
+          h = (Math.imul(h, 33) ^ row) >>> 0;
+          h = (Math.imul(h, 33) ^ (col * 73 + row * 97)) >>> 0;  // Extra mixing
+          cellRevealOrder.set(i, h >>> 0);
+          totalTextCells++;
         }
       }
-      // Shuffle using seed-derived pseudo-random (Fisher-Yates)
-      for (let i = textCellIndices.length - 1; i > 0; i--) {
-        const j = Math.floor(gateHash(seed, `shuffle:${i}`) * (i + 1));
-        [textCellIndices[i], textCellIndices[j]] = [textCellIndices[j]!, textCellIndices[i]!];
-      }
-      const totalTextCells = textCellIndices.length;
+
+      // Sort cells by reveal order to get sequence
+      const textCellIndices = Array.from(cellRevealOrder.entries())
+        .sort((a, b) => a[1] - b[1])
+        .map(([idx]) => idx);
 
       // --- Three.js scene setup ---
       const threeCanvas = document.createElement('canvas');
