@@ -333,7 +333,8 @@ export default function App() {
             const layer = layerArr[vIdx]!;
 
             const wave    = 0.03 * Math.sin(timePhase + col * 0.3 + row * 0.5);
-            let zDisp = (curv + wave - 1.0) * 5.0;
+            // Manifold cells use curvature; text cells stay flat with only wave
+            let zDisp = layer === 0 ? (curv + wave - 1.0) * 5.0 : wave * 0.25;
 
             if (layer > 0) {
               const revealed = revealedCellSet.has(idx);
