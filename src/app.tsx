@@ -184,16 +184,19 @@ export default function App() {
         }
       }
 
-      // Text cells decrypt with random stagger per cell (seed-deterministic)
-      const revealTime = new Float32Array(rows * cols).fill(Infinity);
+      // Build randomized list of text cell indices (seed-deterministic)
+      const textCellIndices: number[] = [];
       for (let i = 0; i < rows * cols; i++) {
         if ((layerMask[i] ?? 0) > 0) {
-          // Random delay 0-600ms per cell, derived from seed
-          const cellRandom = gateHash(seed, `reveal:${i}`);
-          const staggerMs = cellRandom * 600;
-          revealTime[i] = DECRYPT_DURATION + staggerMs;
+          textCellIndices.push(i);
         }
       }
+      // Shuffle using seed-derived pseudo-random (Fisher-Yates)
+      for (let i = textCellIndices.length - 1; i > 0; i--) {
+        const j = Math.floor(gateHash(seed, `shuffle:${i}`) * (i + 1));
+        [textCellIndices[i], textCellIndices[j]] = [textCellIndices[j]!, textCellIndices[i]!];
+      }
+      const totalTextCells = textCellIndices.length;
 
       // --- Three.js scene setup ---
       const threeCanvas = document.createElement('canvas');
@@ -296,6 +299,12 @@ export default function App() {
         const elapsed = performance.now() - startTime;
         const timePhase = (elapsed / 800) * Math.PI * 2;
 
+        // Progressive reveal: number of cells decrypting follows sqrt(t - DECRYPT_DURATION)
+        // Only start progressive reveal after initial decrypt duration
+        const revealElapsed = Math.max(0, elapsed - DECRYPT_DURATION);
+        const numRevealed = Math.min(totalTextCells, Math.floor(Math.sqrt(revealElapsed) * 3));
+        const revealedCellSet = new Set(textCellIndices.slice(0, numRevealed));
+
         // Update vertex positions
         for (let row = 0; row < rows; row++) {
           for (let col = 0; col < cols; col++) {
@@ -308,10 +317,8 @@ export default function App() {
             let zDisp = (curv + wave - 1.0) * 5.0;
 
             if (layer > 0) {
-              const revealed = elapsed >= revealTime[idx]!;
-              const revealProgress = revealed
-                ? Math.min(1, (elapsed - revealTime[idx]!) / 200)
-                : 0;
+              const revealed = revealedCellSet.has(idx);
+              const revealProgress = revealed ? 1 : 0;
               const textZ = (layer === 3 ? 0.45 : 0.2) * revealProgress;
               zDisp += textZ;
 
@@ -375,7 +382,7 @@ export default function App() {
               ctx.fillStyle = `rgb(${rVar},${gVar},${bVar})`;
               ctx.fillText(DENSE_CHARS[ci]!, col * CELL_W, (row + 1) * CELL_H - 2);
             } else {
-              const revealed = elapsed >= revealTime[idx]!;
+              const revealed = revealedCellSet.has(idx);
 
               let glitching = false;
               if (gates.cellGlitch.active && revealed && elapsed > GLITCH_GRACE) {
@@ -395,13 +402,8 @@ export default function App() {
                 const d = layer === 3
                   ? Math.round((lumDriven + density) / 2)
                   : Math.max(0, lumDriven - 1);
-                // Fade in revealed text over 300ms
-                const fadeProgress = Math.min(1, (elapsed - revealTime[idx]!) / 300);
-                const baseAlpha = ctx.globalAlpha;
-                ctx.globalAlpha = fadeProgress;
                 ctx.fillStyle = colorForLayer(layer, density as number);
                 ctx.fillText(DENSE_CHARS[Math.min(4, d)]!, col * CELL_W, (row + 1) * CELL_H - 2);
-                ctx.globalAlpha = baseAlpha;
               }
             }
           }
