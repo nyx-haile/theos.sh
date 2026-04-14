@@ -1,5 +1,4 @@
 import { onMount, onCleanup } from 'solid-js';
-import * as THREE from 'three';
 import { runOriginPhase } from './origin/anchor';
 import { generateColorScheme } from './rendering/color-scheme';
 import { Xoshiro256 } from './manifold/prng';
@@ -85,11 +84,9 @@ export default function App() {
     if (!canvasRef) return;
 
     try {
-      // Bootstrap from origin phase
       const { seed, tier: _tier } = runOriginPhase();
       const scheme = generateColorScheme(seed);
 
-      // Size canvas to fill viewport
       const width = window.innerWidth;
       const height = window.innerHeight;
       const cols = Math.floor(width / CELL_W);
@@ -100,33 +97,34 @@ export default function App() {
 
       const gates = evalGates(seed);
 
-      // --- Generate descriptor curvature field ---
+      // Sync body background to scheme so no gap shows below canvas
+      document.body.style.background = `rgb(${scheme.background.r},${scheme.background.g},${scheme.background.b})`;
+
+      // --- Curvature + color fields ---
       const prng = new Xoshiro256(new Uint8Array(seed));
-      const descriptorCurv: Map<string, number> = new Map();
-      const colorParamsMap: Map<string, { hueOffset: number; satScale: number }> = new Map();
+      const curvField  = new Float32Array(rows * cols);
+      const satField   = new Float32Array(rows * cols);
 
       for (let row = 0; row < rows; row++) {
         for (let col = 0; col < cols; col++) {
           const noise = prng.nextFloat();
-          const curvature = 1.0 + noise * 0.12;
-          descriptorCurv.set(`${col},${row}`, curvature);
+          const idx = row * cols + col;
+          curvField[idx] = 1.0 + noise * 0.12;
+          satField[idx]  = 0.8 + noise * 0.4;
 
-          const hueOffset = (noise - 0.5) * 0.3;
-          const satScale = 0.8 + noise * 0.4;
-          colorParamsMap.set(`${col},${row}`, { hueOffset, satScale });
-
-          const descriptor: Descriptor = {
+          const curvature = curvField[idx]!;
+          const _descriptor: Descriptor = {
             curvature_tensor: [[curvature, 0, 0], [0, curvature * 0.9, 0], [0, 0, 1.0]],
             christoffel_symbols: null,
             topology: { genus: 0, wormhole_pairs: [] },
             content_module_id: 0,
-            color_params: { hue_offset: hueOffset, saturation_scale: satScale },
+            color_params: { hue_offset: (noise - 0.5) * 0.3, saturation_scale: satField[idx]! },
             force_field: { direction: [0, 0, 1], magnitude: 0 },
           };
         }
       }
 
-      // --- Generate text mask with 3D layers ---
+      // --- Text mask ---
       function drawMaskCanvas(offsetX: number, offsetY: number): Uint8ClampedArray {
         const c = document.createElement('canvas');
         c.width = cols; c.height = rows;
@@ -143,8 +141,8 @@ export default function App() {
         return cx.getImageData(0, 0, cols, rows).data;
       }
 
-      const rawFacePixels   = drawMaskCanvas(0, 0);
-      const shadowPixels    = gates.shadow3D.active
+      const rawFacePixels = drawMaskCanvas(0, 0);
+      const shadowPixels  = gates.shadow3D.active
         ? drawMaskCanvas(
             Math.round(Math.cos(gates.shadow3D.angle) * gates.shadow3D.depth),
             Math.round(Math.sin(gates.shadow3D.angle) * gates.shadow3D.depth),
@@ -169,6 +167,7 @@ export default function App() {
         }
       }
 
+      // Dither density for text cells
       const textDensity = new Uint8Array(rows * cols);
       for (let row = 0; row < rows; row++) {
         for (let col = 0; col < cols; col++) {
@@ -184,126 +183,52 @@ export default function App() {
         }
       }
 
-      // Assign each text cell a reveal order based on per-cell hash (col and row hashed independently)
-      const cellRevealOrder: Map<number, number> = new Map();
+      // Reveal order: hash col and row independently, combine with XOR
       let totalTextCells = 0;
+      const cellRevealOrder: Map<number, number> = new Map();
       for (let i = 0; i < rows * cols; i++) {
         if ((layerMask[i] ?? 0) > 0) {
           const row = Math.floor(i / cols);
           const col = i % cols;
-          // Hash col independently: seed + col
           let hCol = 5381;
-          for (let j = 0; j < seed.length; j++) {
-            hCol = (Math.imul(hCol, 33) ^ seed[j]!) >>> 0;
-          }
+          for (let j = 0; j < seed.length; j++) hCol = (Math.imul(hCol, 33) ^ seed[j]!) >>> 0;
           hCol = (Math.imul(hCol, 65599) ^ col) >>> 0;
-
-          // Hash row independently: seed + row
           let hRow = 5381;
-          for (let j = 0; j < seed.length; j++) {
-            hRow = (Math.imul(hRow, 33) ^ seed[j]!) >>> 0;
-          }
+          for (let j = 0; j < seed.length; j++) hRow = (Math.imul(hRow, 33) ^ seed[j]!) >>> 0;
           hRow = (Math.imul(hRow, 65599) ^ row) >>> 0;
-
-          // Combine independent hashes without interaction
-          const h = (hCol ^ hRow) >>> 0;
-          cellRevealOrder.set(i, h);
+          cellRevealOrder.set(i, (hCol ^ hRow) >>> 0);
           totalTextCells++;
         }
       }
-
-      // Sort cells by reveal order to get sequence
       const textCellIndices = Array.from(cellRevealOrder.entries())
         .sort((a, b) => a[1] - b[1])
         .map(([idx]) => idx);
 
-      // --- Three.js scene setup ---
-      const threeCanvas = document.createElement('canvas');
-      threeCanvas.width  = cols;
-      threeCanvas.height = rows;
-      const renderer = new THREE.WebGLRenderer({ canvas: threeCanvas, antialias: false, alpha: false });
-      renderer.setSize(cols, rows, false);
-      renderer.setClearColor(0x000000, 1);
+      // --- Color helpers ---
+      const pR = scheme.primary.r,   pG = scheme.primary.g,   pB = scheme.primary.b;
+      const sR = scheme.secondary.r, sG = scheme.secondary.g, sB = scheme.secondary.b;
+      const aR = scheme.accent.r,    aG = scheme.accent.g,    aB = scheme.accent.b;
 
-      const scene  = new THREE.Scene();
-      const camera = new THREE.PerspectiveCamera(60, cols / rows, 0.1, 100);
-
-      if (gates.cameraAngle.active) {
-        const tilt = gates.cameraAngle.tilt;
-        const az   = gates.cameraAngle.azimuth;
-        const dist = 3;
-        camera.position.set(
-          Math.sin(az) * Math.sin(tilt) * dist,
-          -Math.cos(az) * Math.sin(tilt) * dist,
-          Math.cos(tilt) * dist,
-        );
-      } else {
-        camera.position.set(0, 0, 3);
-      }
-      camera.lookAt(0, 0, 0);
-
-      const dirLight = new THREE.DirectionalLight(0xffffff, gates.shadow3D.active ? 1.2 : 0.6);
-      if (gates.shadow3D.active) {
-        const a = gates.shadow3D.angle;
-        dirLight.position.set(Math.cos(a) * 3, Math.sin(a) * 3, 2);
-      } else {
-        dirLight.position.set(1, 1, 2);
-      }
-      scene.add(dirLight);
-      scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-
-      // --- Manifold geometry ---
-      const geo = new THREE.PlaneGeometry(2, 2, cols - 1, rows - 1);
-      const positions = geo.attributes['position']!.array as Float32Array;
-
-      const curvArr  = new Float32Array(cols * rows);
-      const layerArr = new Float32Array(cols * rows);
-      const baseXArr = new Float32Array(cols * rows);
-
-      for (let row = 0; row < rows; row++) {
-        for (let col = 0; col < cols; col++) {
-          const vIdx = (rows - 1 - row) * cols + col;
-          curvArr[vIdx]  = descriptorCurv.get(`${col},${row}`) ?? 1.0;
-          layerArr[vIdx] = layerMask[row * cols + col] ?? 0;
-          baseXArr[vIdx] = positions[vIdx * 3 + 0] ?? 0;
-        }
+      // Background: interpolate primary→accent by curvature level, modulated by satField
+      function bgColor(col: number, row: number, ci: number): string {
+        const sat = satField[row * cols + col] ?? 1.0;
+        const t = ci / 4;  // 0=sparse→primary, 1=dense→accent
+        const r = Math.round((pR + (aR - pR) * t) * sat);
+        const g = Math.round((pG + (aG - pG) * t) * sat);
+        const b = Math.round((pB + (aB - pB) * t) * sat);
+        return `rgb(${Math.min(255,r)},${Math.min(255,g)},${Math.min(255,b)})`;
       }
 
-      for (let v = 0; v < cols * rows; v++) {
-        const layer = layerArr[v]!;
-        positions[v * 3 + 2] = (curvArr[v]! - 1.0) * 5.0
-          + (layer === 3 ? 0.45 : layer === 1 ? 0.2 : 0.0);
-      }
-      geo.attributes['position']!.needsUpdate = true;
-      geo.computeVertexNormals();
-
-      if (gates.mirrorFlip.active) {
-        const axis = gates.mirrorFlip.axis === 'h' ? 0 : 1;
-        for (let v = 0; v < cols * rows; v++) {
-          baseXArr[v] = axis === 0 ? -baseXArr[v]! : baseXArr[v]!;
-          positions[v * 3 + axis] = (positions[v * 3 + axis] ?? 0) * -1;
-        }
-        geo.attributes['position']!.needsUpdate = true;
-        geo.computeVertexNormals();
-      }
-
-      const mat = new THREE.MeshLambertMaterial({
-        color: new THREE.Color(scheme.primary.r / 255, scheme.primary.g / 255, scheme.primary.b / 255),
-      });
-      const mesh = new THREE.Mesh(geo, mat);
-      scene.add(mesh);
-
-      // --- Color helpers for text cells ---
-      const aR = scheme.accent.r, aG = scheme.accent.g, aB = scheme.accent.b;
+      // Text uses secondary color (distinct from accent-dominant background)
+      // Face layer: bright secondary; shadow layer: dim secondary; scramble: near-invisible
       const colorForLayer = (layer: number, density: number): string => {
-        const scale = layer === 3 ? 0.8 + density * 0.12 : 0.35;
-        return `rgb(${Math.round(aR*scale)},${Math.round(aG*scale)},${Math.round(aB*scale)})`;
+        const scale = layer === 3 ? 1.0 + density * 0.08 : 0.4;
+        return `rgb(${Math.min(255,Math.round(sR*scale))},${Math.min(255,Math.round(sG*scale))},${Math.min(255,Math.round(sB*scale))})`;
       };
-      const colorScramble = `rgb(${Math.round(aR*0.22)},${Math.round(aG*0.22)},${Math.round(aB*0.22)})`;
-      const colorGlitch   = `rgb(${Math.min(255,Math.round(aR*1.5))},${Math.min(255,Math.round(aG*1.5))},${Math.min(255,Math.round(aB*1.5))})`;
+      const colorScramble = `rgb(${Math.round(aR*0.18)},${Math.round(aG*0.18)},${Math.round(aB*0.18)})`;
+      const colorGlitch   = `rgb(${Math.min(255,Math.round(aR*1.8))},${Math.min(255,Math.round(aG*1.8))},${Math.min(255,Math.round(aB*1.8))})`;
 
       // --- Frame loop ---
-      const pixelBuffer = new Uint8Array(cols * rows * 4);
       const ctx = canvasRef.getContext('2d')!;
       const weight = gates.fontVariation.active ? gates.fontVariation.weight : 'bold';
       const sizeAdjust = gates.fontVariation.active ? 1 + gates.fontVariation.sizeVar : 1;
@@ -311,98 +236,33 @@ export default function App() {
       let rafId: number;
       const startTime = performance.now();
 
-      const jitterSeeds = new Float32Array(rows);
-      for (let r = 0; r < rows; r++) jitterSeeds[r] = gateHash(seed, `jitter:row:${r}`);
-
       function frame() {
         const elapsed = performance.now() - startTime;
         const timePhase = (elapsed / 800) * Math.PI * 2;
 
-        // Progressive reveal: number of cells decrypting follows sqrt(t - DECRYPT_DURATION)
-        // Only start progressive reveal after initial decrypt duration
         const revealElapsed = Math.max(0, elapsed - DECRYPT_DURATION);
         const numRevealed = Math.min(totalTextCells, Math.floor(Math.sqrt(revealElapsed) * 3));
         const revealedCellSet = new Set(textCellIndices.slice(0, numRevealed));
 
-        // Update vertex positions
-        for (let row = 0; row < rows; row++) {
-          for (let col = 0; col < cols; col++) {
-            const vIdx  = (rows - 1 - row) * cols + col;
-            const idx   = row * cols + col;
-            const curv  = curvArr[vIdx]!;
-            const layer = layerArr[vIdx]!;
-
-            const wave    = 0.03 * Math.sin(timePhase + col * 0.3 + row * 0.5);
-            // Manifold cells use curvature; text cells stay flat with only wave
-            let zDisp = layer === 0 ? (curv + wave - 1.0) * 5.0 : wave * 0.25;
-
-            if (layer > 0) {
-              const revealed = revealedCellSet.has(idx);
-              const revealProgress = revealed ? 1 : 0;
-              const textZ = (layer === 3 ? 0.45 : 0.2) * revealProgress;
-              zDisp += textZ;
-
-              if (gates.textDistortion.active) {
-                const xShift = gates.textDistortion.amplitude
-                  * Math.sin(row * gates.textDistortion.freq * Math.PI * 2);
-                positions[vIdx * 3] = baseXArr[vIdx]! + xShift;
-              }
-
-              if (gates.jitter.active && !revealed) {
-                const jb = jitterSeeds[row]!;
-                if (jb < 0.12) {
-                  const current = positions[vIdx * 3] ?? 0;
-                  positions[vIdx * 3] = current + (jb < 0.06 ? 1 : -1) * gates.jitter.amplitude;
-                }
-              }
-            }
-
-            positions[vIdx * 3 + 2] = zDisp;
-          }
-        }
-        mesh.geometry.attributes['position']!.needsUpdate = true;
-        mesh.geometry.computeVertexNormals();
-
-        // Render 3D scene
-        renderer.render(scene, camera);
-        const glCtx = threeCanvas.getContext('webgl2') ?? threeCanvas.getContext('webgl')!;
-        (glCtx as WebGLRenderingContext).readPixels(
-          0, 0, cols, rows,
-          (glCtx as WebGLRenderingContext).RGBA,
-          (glCtx as WebGLRenderingContext).UNSIGNED_BYTE,
-          pixelBuffer,
-        );
-
-        // ASCII map
         const bgRgb = `rgb(${scheme.background.r},${scheme.background.g},${scheme.background.b})`;
         ctx.fillStyle = bgRgb;
         ctx.fillRect(0, 0, width, height);
 
         for (let row = 0; row < rows; row++) {
-          const srcRow = rows - 1 - row;
           for (let col = 0; col < cols; col++) {
-            const pOff   = (srcRow * cols + col) * 4;
-            const r = pixelBuffer[pOff]!;
-            const g = pixelBuffer[pOff + 1]!;
-            const b = pixelBuffer[pOff + 2]!;
-            const lum = (r * 0.2126 + g * 0.7152 + b * 0.0722) / 255;
-
             const idx   = row * cols + col;
             const layer = layerMask[idx] ?? 0;
 
             if (layer === 0) {
-              if (lum < 0.015) continue;
-              const ci = Math.min(4, Math.floor(lum * 5));
-              // Apply color variation from color_params
-              const colorParams = colorParamsMap.get(`${col},${row}`);
-              const satScale = colorParams?.satScale ?? 1.0;
-              const rVar = Math.min(255, Math.round(r * (0.8 + satScale * 0.25)));
-              const gVar = Math.min(255, Math.round(g * (0.8 + satScale * 0.25)));
-              const bVar = Math.min(255, Math.round(b * (0.8 + satScale * 0.25)));
-              ctx.fillStyle = `rgb(${rVar},${gVar},${bVar})`;
+              // Background: animated curvature → char + color
+              const curv = curvField[idx]!;
+              const wave = 0.03 * Math.sin(timePhase + col * 0.3 + row * 0.5);
+              const animCurv = curv + wave;
+              const ci = Math.min(4, Math.max(0, Math.floor((animCurv - 1.0) * 50)));
+              ctx.fillStyle = bgColor(col, row, ci);
               ctx.fillText(DENSE_CHARS[ci]!, col * CELL_W, (row + 1) * CELL_H - 2);
             } else {
-              // Text cells: bypass Three.js luminance, draw directly from density map
+              // Text cells: drawn directly, no Three.js
               const revealed = revealedCellSet.has(idx);
 
               let glitching = false;
@@ -418,7 +278,6 @@ export default function App() {
                 ctx.fillStyle = glitching ? colorGlitch : colorScramble;
                 ctx.fillText(GIBBERISH[gIdx]!, col * CELL_W, (row + 1) * CELL_H - 2);
               } else {
-                // Use density map directly — no Three.js luminance involved
                 const density = textDensity[idx] ?? 0;
                 ctx.fillStyle = colorForLayer(layer, density);
                 ctx.fillText(DENSE_CHARS[density]!, col * CELL_W, (row + 1) * CELL_H - 2);
@@ -432,10 +291,7 @@ export default function App() {
 
       rafId = requestAnimationFrame(frame);
 
-      onCleanup(() => {
-        cancelAnimationFrame(rafId);
-        renderer.dispose();
-      });
+      onCleanup(() => cancelAnimationFrame(rafId));
     } catch (e) {
       console.error('App error:', e);
     }
