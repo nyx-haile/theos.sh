@@ -402,6 +402,7 @@ export default function App() {
               ctx.fillStyle = `rgb(${rVar},${gVar},${bVar})`;
               ctx.fillText(DENSE_CHARS[ci]!, col * CELL_W, (row + 1) * CELL_H - 2);
             } else {
+              // Text cells: bypass Three.js luminance, draw directly from density map
               const revealed = revealedCellSet.has(idx);
 
               let glitching = false;
@@ -417,13 +418,10 @@ export default function App() {
                 ctx.fillStyle = glitching ? colorGlitch : colorScramble;
                 ctx.fillText(GIBBERISH[gIdx]!, col * CELL_W, (row + 1) * CELL_H - 2);
               } else {
+                // Use density map directly — no Three.js luminance involved
                 const density = textDensity[idx] ?? 0;
-                const lumDriven = Math.min(4, Math.max(0, Math.round(lum * 6 - 0.5)));
-                const d = layer === 3
-                  ? Math.round((lumDriven + density) / 2)
-                  : Math.max(0, lumDriven - 1);
-                ctx.fillStyle = colorForLayer(layer, density as number);
-                ctx.fillText(DENSE_CHARS[Math.min(4, d)]!, col * CELL_W, (row + 1) * CELL_H - 2);
+                ctx.fillStyle = colorForLayer(layer, density);
+                ctx.fillText(DENSE_CHARS[density]!, col * CELL_W, (row + 1) * CELL_H - 2);
               }
             }
           }
