@@ -8,7 +8,9 @@ declare module '../../signals/catalog' {
   }
 }
 
-type GlitchKind = 'rect' | 'vertical' | 'horizontal' | 'interlace' | 'skew' | 'block';
+type GlitchKind =
+  | 'rect' | 'vertical' | 'horizontal' | 'interlace' | 'skew' | 'block'
+  | 'chroma' | 'mirror' | 'displaced-row';
 
 interface GlitchEvent {
   kind:        GlitchKind;
@@ -20,8 +22,9 @@ interface GlitchEvent {
   colEnd:      number;
   shiftDx:     number;
   shiftDy:     number;
-  slope:       number; // cells of dx-drift per row, used by `skew`
+  slope:       number;
   gibberish:   boolean;
+  chromatic:   boolean;
 }
 
 const GIBBERISH = '█▓▒░#%$&@?!*+=<>/\\|[]{}()~^`;:\'"';
@@ -29,15 +32,21 @@ const EVENT_HORIZON_MS = 60_000;
 const SLOT_MS          = 220;
 const SLOT_HIT_PROB    = 0.30;
 const GEOM_P           = 0.9;
+const CHROMATIC_PROB   = 0.55;
 
-// Cumulative kind weights — must sum to 1.0.
+const CHROMA_A = 'rgb(80,255,230)';
+const CHROMA_B = 'rgb(255,80,180)';
+
 const KIND_WEIGHTS: Array<[GlitchKind, number]> = [
-  ['rect',      0.22],
-  ['vertical',  0.14],
-  ['horizontal',0.16],
-  ['interlace', 0.16],
-  ['skew',      0.16],
-  ['block',     0.16],
+  ['rect',          0.15],
+  ['vertical',      0.10],
+  ['horizontal',    0.12],
+  ['interlace',     0.12],
+  ['skew',          0.12],
+  ['block',         0.12],
+  ['chroma',        0.12],
+  ['mirror',        0.09],
+  ['displaced-row', 0.06],
 ];
 
 function pickKind(u: number): GlitchKind {
@@ -56,6 +65,7 @@ export const jitterEffect: Effect = {
     let shiftDx: Int16Array | null = null;
     let shiftDy: Int16Array | null = null;
     let gibberishMask: Uint8Array | null = null;
+    let chromaMask: Int8Array | null = null;
     let colorGlitch = 'rgb(255,255,255)';
 
     app.on('maskReady', () => {
@@ -68,6 +78,7 @@ export const jitterEffect: Effect = {
       shiftDx       = new Int16Array(rows * cols);
       shiftDy       = new Int16Array(rows * cols);
       gibberishMask = new Uint8Array(rows * cols);
+      chromaMask    = new Int8Array(rows * cols);
       events.length = 0;
       if (burstActive) {
         const prng = effectPrng(seed, 'jitter:events');
@@ -94,10 +105,9 @@ export const jitterEffect: Effect = {
               case 'horizontal':
                 colStart = 0; colSpan = cols;
                 rowSpan = 1 + Math.floor(prng.nextFloat() * 3);
-                shiftDy = 0; // pure horizontal tear
+                shiftDy = 0;
                 break;
               case 'interlace':
-                // small rect, shift alternates per row
                 rowSpan = 3 + Math.floor(prng.nextFloat() * 6);
                 colSpan = 5 + Math.floor(prng.nextFloat() * 20);
                 shiftDx = Math.max(2, Math.round(Math.abs(shiftDx)));
@@ -116,12 +126,32 @@ export const jitterEffect: Effect = {
                 shiftDx = 0; shiftDy = 0;
                 gibberish = true;
                 break;
+              case 'chroma':
+                rowSpan = 3 + Math.floor(prng.nextFloat() * 6);
+                colSpan = 6 + Math.floor(prng.nextFloat() * 18);
+                shiftDx = 3 + Math.floor(prng.nextFloat() * 6);
+                shiftDy = 0;
+                gibberish = false;
+                break;
+              case 'mirror':
+                rowSpan = 3 + Math.floor(prng.nextFloat() * 8);
+                colSpan = 6 + Math.floor(prng.nextFloat() * 20);
+                shiftDx = 0; shiftDy = 0;
+                gibberish = false;
+                break;
+              case 'displaced-row':
+                rowSpan = 1 + Math.floor(prng.nextFloat() * 2);
+                colSpan = 10 + Math.floor(prng.nextFloat() * 30);
+                shiftDx = 0;
+                shiftDy = (prng.nextFloat() < 0.5 ? -1 : 1) * (2 + Math.floor(prng.nextFloat() * 4));
+                gibberish = prng.nextFloat() < 0.3;
+                break;
               case 'rect':
               default:
-                // keep defaults
                 break;
             }
 
+            const chromatic = kind !== 'chroma' && !gibberish && prng.nextFloat() < CHROMATIC_PROB;
             events.push({
               kind,
               startMs:    t + prng.nextFloat() * SLOT_MS,
@@ -134,6 +164,7 @@ export const jitterEffect: Effect = {
               shiftDy,
               slope,
               gibberish,
+              chromatic,
             });
           }
         }
@@ -143,8 +174,8 @@ export const jitterEffect: Effect = {
     }, { priority: 200 });
 
     app.on('frameBegin', ({ elapsed }, busCtx) => {
-      if (!shiftDx || !shiftDy || !gibberishMask) return;
-      shiftDx.fill(0); shiftDy.fill(0); gibberishMask.fill(0);
+      if (!shiftDx || !shiftDy || !gibberishMask || !chromaMask) return;
+      shiftDx.fill(0); shiftDy.fill(0); gibberishMask.fill(0); chromaMask.fill(0);
       if (!burstActive) return;
       const cols = app.context().cols;
       for (const ev of events) {
@@ -152,12 +183,25 @@ export const jitterEffect: Effect = {
         for (let r = ev.rowStart; r <= ev.rowEnd; r++) {
           const rowBase = r * cols;
           let rowDx = ev.shiftDx;
-          if (ev.kind === 'interlace') rowDx = (r & 1) === 0 ? ev.shiftDx : -ev.shiftDx;
-          else if (ev.kind === 'skew') rowDx = ev.shiftDx + Math.round((r - ev.rowStart) * ev.slope);
+          if      (ev.kind === 'interlace') rowDx = (r & 1) === 0 ? ev.shiftDx : -ev.shiftDx;
+          else if (ev.kind === 'skew')      rowDx = ev.shiftDx + Math.round((r - ev.rowStart) * ev.slope);
           for (let c = ev.colStart; c <= ev.colEnd; c++) {
             const idx = rowBase + c;
-            shiftDx[idx] = rowDx;
-            shiftDy[idx] = ev.shiftDy;
+            if (ev.kind === 'mirror') {
+              shiftDx[idx] = ev.colStart + ev.colEnd - 2 * c;
+              shiftDy[idx] = 0;
+            } else if (ev.kind === 'chroma') {
+              const sign = ((c - ev.colStart) & 1) === 0 ? 1 : -1;
+              shiftDx[idx] = sign * ev.shiftDx;
+              shiftDy[idx] = 0;
+              chromaMask[idx] = sign;
+            } else {
+              shiftDx[idx] = rowDx;
+              shiftDy[idx] = ev.shiftDy;
+            }
+            if (ev.chromatic && ev.kind !== 'mirror' && ev.kind !== 'chroma') {
+              chromaMask[idx] = ((c - ev.colStart) & 1) === 0 ? 1 : -1;
+            }
             if (ev.gibberish) gibberishMask[idx] = 1;
           }
         }
@@ -173,17 +217,20 @@ export const jitterEffect: Effect = {
         cell.dx += n1 * baseAmp * 2;
         cell.dy += n2 * baseAmp * 2;
       }
-      if (shiftDx && shiftDy && gibberishMask) {
+      if (shiftDx && shiftDy && gibberishMask && chromaMask) {
         const idx = cell.row * rctx.cols + cell.col;
         const dx = shiftDx[idx]!, dy = shiftDy[idx]!;
         const gib = gibberishMask[idx] === 1;
-        if (dx !== 0 || dy !== 0 || gib) {
+        const chroma = chromaMask[idx]!;
+        if (dx !== 0 || dy !== 0 || gib || chroma !== 0) {
           cell.dx += dx;
           cell.dy += dy;
           if (gib) {
             const pick = ((cell.col * 31 + cell.row * 17) >>> 0) % GIBBERISH.length;
             cell.charOverride = GIBBERISH.charAt(pick);
             cell.colorOverride = colorGlitch;
+          } else if (chroma !== 0) {
+            cell.colorOverride = chroma > 0 ? CHROMA_A : CHROMA_B;
           }
         }
       }
