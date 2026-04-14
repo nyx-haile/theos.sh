@@ -132,7 +132,7 @@ export default function App() {
       //   " the"
       //   " os "
       //   ".sh "
-      const LINES_STACKED = [' the', ' os ', '.sh '] as const;
+      const LINES_STACKED = [' the', ' os', '.sh'] as const;
       const weight = gates.fontVariation.active ? gates.fontVariation.weight : 'bold';
 
       function drawMaskCanvas(offsetX: number, offsetY: number): Uint8ClampedArray {
