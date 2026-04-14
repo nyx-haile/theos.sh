@@ -184,24 +184,30 @@ export default function App() {
         }
       }
 
-      // Assign each text cell a reveal order based on per-cell hash (position-independent)
+      // Assign each text cell a reveal order based on per-cell hash (col and row hashed independently)
       const cellRevealOrder: Map<number, number> = new Map();
       let totalTextCells = 0;
       for (let i = 0; i < rows * cols; i++) {
         if ((layerMask[i] ?? 0) > 0) {
           const row = Math.floor(i / cols);
           const col = i % cols;
-          // Robust hash: fully mix seed bytes with col+row, use multiple passes
-          let h = 5381;
+          // Hash col independently: seed + col
+          let hCol = 5381;
           for (let j = 0; j < seed.length; j++) {
-            h = (Math.imul(h, 33) ^ seed[j]!) >>> 0;
+            hCol = (Math.imul(hCol, 33) ^ seed[j]!) >>> 0;
           }
-          // Mix col and row with rotation and multiple constants to break both axes
-          h = (Math.imul(h, 65599) ^ col) >>> 0;
-          h = (Math.imul(h ^ (h >>> 16), 7141222) ^ row) >>> 0;
-          h = (Math.imul(h, 33) ^ (col ^ row)) >>> 0;
-          h = (Math.imul(h, 73) ^ (col * row)) >>> 0;  // Non-linear mixing
-          cellRevealOrder.set(i, h >>> 0);
+          hCol = (Math.imul(hCol, 65599) ^ col) >>> 0;
+
+          // Hash row independently: seed + row
+          let hRow = 5381;
+          for (let j = 0; j < seed.length; j++) {
+            hRow = (Math.imul(hRow, 33) ^ seed[j]!) >>> 0;
+          }
+          hRow = (Math.imul(hRow, 65599) ^ row) >>> 0;
+
+          // Combine independent hashes without interaction
+          const h = (hCol ^ hRow) >>> 0;
+          cellRevealOrder.set(i, h);
           totalTextCells++;
         }
       }
