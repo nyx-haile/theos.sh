@@ -254,11 +254,12 @@ export default function App() {
             const layer = layerMask[idx] ?? 0;
 
             if (layer === 0) {
-              // Background: animated curvature → char + color
+              // Background: curvature noise + gentle wave → char density
               const curv = curvField[idx]!;
-              const wave = 0.03 * Math.sin(timePhase + col * 0.3 + row * 0.5);
+              const wave = 0.015 * Math.sin(timePhase + col * 0.15 + row * 0.22);
               const animCurv = curv + wave;
-              const ci = Math.min(4, Math.max(0, Math.floor((animCurv - 1.0) * 50)));
+              // Three bands matching original approach, noise-dominant
+              const ci = animCurv > 1.07 ? 4 : animCurv > 1.04 ? 2 : 1;
               ctx.fillStyle = bgColor(col, row, ci);
               ctx.fillText(DENSE_CHARS[ci]!, col * CELL_W, (row + 1) * CELL_H - 2);
             } else {
