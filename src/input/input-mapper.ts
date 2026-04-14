@@ -68,3 +68,13 @@ export class InputMapper {
     return { type: 'ForceOp', field_delta: { direction: [0, 0, 1], magnitude: 0.1 } };
   }
 }
+
+import type { Applicator } from '../applicator';
+
+export function wireInputMapper(app: Applicator): () => void {
+  const onKey = (e: KeyboardEvent) => {
+    app.emit('keyPress', { key: e.key, t: performance.now() });
+  };
+  window.addEventListener('keydown', onKey);
+  return () => window.removeEventListener('keydown', onKey);
+}
