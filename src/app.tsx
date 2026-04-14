@@ -184,20 +184,13 @@ export default function App() {
         }
       }
 
-      const textCellIndices: number[] = [];
-      for (let i = 0; i < rows * cols; i++) {
-        if ((layerMask[i] ?? 0) > 0) textCellIndices.push(i);
-      }
-      const cx2 = cols / 2, cy2 = rows / 2;
-      textCellIndices.sort((a, b) => {
-        const ar = Math.floor(a / cols), ac = a % cols;
-        const br = Math.floor(b / cols), bc = b % cols;
-        return ((ac-cx2)**2+(ar-cy2)**2) - ((bc-cx2)**2+(br-cy2)**2);
-      });
+      // All text cells reveal at the same time (DECRYPT_DURATION ms after start)
       const revealTime = new Float32Array(rows * cols).fill(Infinity);
-      textCellIndices.forEach((ci, k) => {
-        revealTime[ci] = (k / textCellIndices.length) * DECRYPT_DURATION;
-      });
+      for (let i = 0; i < rows * cols; i++) {
+        if ((layerMask[i] ?? 0) > 0) {
+          revealTime[i] = DECRYPT_DURATION;
+        }
+      }
 
       // --- Three.js scene setup ---
       const threeCanvas = document.createElement('canvas');
@@ -278,7 +271,7 @@ export default function App() {
       // --- Color helpers for text cells ---
       const aR = scheme.accent.r, aG = scheme.accent.g, aB = scheme.accent.b;
       const colorForLayer = (layer: number, density: number): string => {
-        const scale = layer === 3 ? 0.55 + density * 0.09 : 0.28;
+        const scale = layer === 3 ? 0.8 + density * 0.12 : 0.35;
         return `rgb(${Math.round(aR*scale)},${Math.round(aG*scale)},${Math.round(aB*scale)})`;
       };
       const colorScramble = `rgb(${Math.round(aR*0.22)},${Math.round(aG*0.22)},${Math.round(aB*0.22)})`;
@@ -289,7 +282,7 @@ export default function App() {
       const ctx = canvasRef.getContext('2d')!;
       const weight = gates.fontVariation.active ? gates.fontVariation.weight : 'bold';
       const sizeAdjust = gates.fontVariation.active ? 1 + gates.fontVariation.sizeVar : 1;
-      ctx.font = `${weight} ${Math.round(14 * sizeAdjust)}px monospace`;
+      ctx.font = `${weight} ${Math.round(22 * sizeAdjust)}px monospace`;
       let rafId: number;
       const startTime = performance.now();
 
@@ -399,8 +392,13 @@ export default function App() {
                 const d = layer === 3
                   ? Math.round((lumDriven + density) / 2)
                   : Math.max(0, lumDriven - 1);
+                // Fade in revealed text over 300ms
+                const fadeProgress = Math.min(1, (elapsed - revealTime[idx]!) / 300);
+                const baseAlpha = ctx.globalAlpha;
+                ctx.globalAlpha = fadeProgress;
                 ctx.fillStyle = colorForLayer(layer, density as number);
                 ctx.fillText(DENSE_CHARS[Math.min(4, d)]!, col * CELL_W, (row + 1) * CELL_H - 2);
+                ctx.globalAlpha = baseAlpha;
               }
             }
           }
