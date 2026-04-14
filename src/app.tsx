@@ -87,8 +87,11 @@ export default function App() {
       const { seed, tier: _tier } = runOriginPhase();
       const scheme = generateColorScheme(seed);
 
-      const width = window.innerWidth;
-      const height = window.innerHeight;
+      // Use getBoundingClientRect for actual rendered size — window.innerWidth/Height
+      // may be rounded by privacy-hardened browsers (LibreWolf/Tor) for fingerprint resistance
+      const rect = canvasRef.getBoundingClientRect();
+      const width  = Math.round(rect.width)  || document.documentElement.clientWidth;
+      const height = Math.round(rect.height) || document.documentElement.clientHeight;
       const cols = Math.floor(width / CELL_W);
       const rows = Math.floor(height / CELL_H);
       canvasRef.width  = width;
