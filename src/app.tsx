@@ -29,6 +29,7 @@ interface Gates {
   mirrorFlip:     { active: boolean; axis: 'h' | 'v' };
   cameraAngle:    { active: boolean; tilt: number; azimuth: number };
   manifoldGenus:  { active: boolean; genus: number };
+  fontVariation:  { active: boolean; weight: 'normal' | 'bold'; sizeVar: number };
 }
 
 function evalGates(seed: Uint8Array): Gates {
@@ -64,6 +65,11 @@ function evalGates(seed: Uint8Array): Gates {
       active: gateHash(seed, 'manifoldGenus') < 0.30,
       genus:  1 + Math.floor(p('manifoldGenus', 'count') * 3),
     },
+    fontVariation: {
+      active:  gateHash(seed, 'fontVariation') < 0.50,
+      weight:  p('fontVariation', 'weight') < 0.5 ? 'normal' : 'bold',
+      sizeVar: (p('fontVariation', 'size') - 0.5) * 0.3,
+    },
   };
 }
 
@@ -97,6 +103,7 @@ export default function App() {
       // --- Generate descriptor curvature field ---
       const prng = new Xoshiro256(new Uint8Array(seed));
       const descriptorCurv: Map<string, number> = new Map();
+      const colorParamsMap: Map<string, { hueOffset: number; satScale: number }> = new Map();
 
       for (let row = 0; row < rows; row++) {
         for (let col = 0; col < cols; col++) {
@@ -104,12 +111,16 @@ export default function App() {
           const curvature = 1.0 + noise * 0.12;
           descriptorCurv.set(`${col},${row}`, curvature);
 
+          const hueOffset = (noise - 0.5) * 0.3;
+          const satScale = 0.8 + noise * 0.4;
+          colorParamsMap.set(`${col},${row}`, { hueOffset, satScale });
+
           const descriptor: Descriptor = {
             curvature_tensor: [[curvature, 0, 0], [0, curvature * 0.9, 0], [0, 0, 1.0]],
             christoffel_symbols: null,
             topology: { genus: 0, wormhole_pairs: [] },
             content_module_id: 0,
-            color_params: { hue_offset: (noise - 0.5) * 0.3, saturation_scale: 0.8 + noise * 0.4 },
+            color_params: { hue_offset: hueOffset, saturation_scale: satScale },
             force_field: { direction: [0, 0, 1], magnitude: 0 },
           };
         }
@@ -124,9 +135,10 @@ export default function App() {
         cx.textBaseline = 'middle';
         cx.textAlign = 'center';
         let fs = rows * 0.4;
-        cx.font = `bold ${fs}px monospace`;
+        const weight = gates.fontVariation.active ? gates.fontVariation.weight : 'bold';
+        cx.font = `${weight} ${fs}px monospace`;
         const nw = cx.measureText('theos.sh').width;
-        if (nw > cols * 0.65) { fs *= (cols * 0.65) / nw; cx.font = `bold ${fs}px monospace`; }
+        if (nw > cols * 0.65) { fs *= (cols * 0.65) / nw; cx.font = `${weight} ${fs}px monospace`; }
         cx.fillText('theos.sh', cols / 2 + offsetX, rows / 2 + offsetY);
         return cx.getImageData(0, 0, cols, rows).data;
       }
@@ -220,7 +232,7 @@ export default function App() {
         dirLight.position.set(1, 1, 2);
       }
       scene.add(dirLight);
-      scene.add(new THREE.AmbientLight(0xffffff, 0.3));
+      scene.add(new THREE.AmbientLight(0xffffff, 0.7));
 
       // --- Manifold geometry ---
       const geo = new THREE.PlaneGeometry(2, 2, cols - 1, rows - 1);
@@ -275,7 +287,9 @@ export default function App() {
       // --- Frame loop ---
       const pixelBuffer = new Uint8Array(cols * rows * 4);
       const ctx = canvasRef.getContext('2d')!;
-      ctx.font = '14px monospace';
+      const weight = gates.fontVariation.active ? gates.fontVariation.weight : 'bold';
+      const sizeAdjust = gates.fontVariation.active ? 1 + gates.fontVariation.sizeVar : 1;
+      ctx.font = `${weight} ${Math.round(14 * sizeAdjust)}px monospace`;
       let rafId: number;
       const startTime = performance.now();
 
@@ -354,9 +368,15 @@ export default function App() {
             const layer = layerMask[idx] ?? 0;
 
             if (layer === 0) {
-              if (lum < 0.04) continue;
+              if (lum < 0.015) continue;
               const ci = Math.min(4, Math.floor(lum * 5));
-              ctx.fillStyle = `rgb(${r},${g},${b})`;
+              // Apply color variation from color_params
+              const colorParams = colorParamsMap.get(`${col},${row}`);
+              const satScale = colorParams?.satScale ?? 1.0;
+              const rVar = Math.min(255, Math.round(r * (0.8 + satScale * 0.25)));
+              const gVar = Math.min(255, Math.round(g * (0.8 + satScale * 0.25)));
+              const bVar = Math.min(255, Math.round(b * (0.8 + satScale * 0.25)));
+              ctx.fillStyle = `rgb(${rVar},${gVar},${bVar})`;
               ctx.fillText(DENSE_CHARS[ci]!, col * CELL_W, (row + 1) * CELL_H - 2);
             } else {
               const revealed = elapsed >= revealTime[idx]!;
