@@ -127,19 +127,57 @@ export default function App() {
       }
 
       // --- Text mask ---
+      // Stacked layout when single-line would be too small to read.
+      // All lines padded to equal length so monospace makes a perfect square:
+      //   " the"
+      //   " os "
+      //   ".sh "
+      const LINES_STACKED = [' the', ' os ', '.sh '] as const;
+      const weight = gates.fontVariation.active ? gates.fontVariation.weight : 'bold';
+
       function drawMaskCanvas(offsetX: number, offsetY: number): Uint8ClampedArray {
         const c = document.createElement('canvas');
         c.width = cols; c.height = rows;
         const cx = c.getContext('2d')!;
         cx.fillStyle = 'white';
         cx.textBaseline = 'middle';
-        cx.textAlign = 'center';
-        let fs = rows * 0.4;
-        const weight = gates.fontVariation.active ? gates.fontVariation.weight : 'bold';
-        cx.font = `${weight} ${fs}px monospace`;
-        const nw = cx.measureText('theos.sh').width;
-        if (nw > cols * 0.65) { fs *= (cols * 0.65) / nw; cx.font = `${weight} ${fs}px monospace`; }
-        cx.fillText('theos.sh', cols / 2 + offsetX, rows / 2 + offsetY);
+
+        // Try single-line at target size: 40% of pixel height, capped at 65% of pixel width
+        const targetH = rows * CELL_H * 0.40;
+        cx.font = `${weight} ${targetH}px monospace`;
+        const singleW = cx.measureText('theos.sh').width;
+        const fsSingle = singleW > cols * CELL_W * 0.65
+          ? targetH * (cols * CELL_W * 0.65) / singleW
+          : targetH;
+
+        // Switch to stacked if single-line font would be smaller than 1 cell height
+        const useStacked = fsSingle < CELL_H;
+
+        if (!useStacked) {
+          cx.font = `${weight} ${fsSingle}px monospace`;
+          cx.textAlign = 'center';
+          // Convert pixel coords back to mask-canvas coords (mask is cols×rows, not px)
+          cx.setTransform(1 / CELL_W, 0, 0, 1 / CELL_H, 0, 0);
+          cx.font = `${weight} ${fsSingle}px monospace`;
+          cx.fillText('theos.sh', (cols * CELL_W) / 2 + offsetX * CELL_W, (rows * CELL_H) / 2 + offsetY * CELL_H);
+        } else {
+          // Stacked: fit widest line (" the") to 80% of pixel width, keep aspect
+          const fsStack = Math.min(
+            rows * CELL_H * 0.25,
+            (cols * CELL_W * 0.8) / cx.measureText(' the').width * targetH,
+          );
+          cx.setTransform(1 / CELL_W, 0, 0, 1 / CELL_H, 0, 0);
+          cx.font = `${weight} ${fsStack}px monospace`;
+          cx.textAlign = 'left';
+          const lineH = fsStack * 1.2;
+          const totalH = lineH * LINES_STACKED.length;
+          const startY = (rows * CELL_H - totalH) / 2 + lineH / 2;
+          const startX = (cols * CELL_W - cx.measureText(LINES_STACKED[0]).width) / 2;
+          LINES_STACKED.forEach((line, i) => {
+            cx.fillText(line, startX + offsetX * CELL_W, startY + i * lineH + offsetY * CELL_H);
+          });
+        }
+
         return cx.getImageData(0, 0, cols, rows).data;
       }
 
@@ -236,7 +274,6 @@ export default function App() {
 
       // --- Frame loop ---
       const ctx = canvasRef.getContext('2d')!;
-      const weight = gates.fontVariation.active ? gates.fontVariation.weight : 'bold';
       const sizeAdjust = gates.fontVariation.active ? 1 + gates.fontVariation.sizeVar : 1;
       ctx.font = `${weight} ${Math.round(22 * sizeAdjust)}px monospace`;
       let rafId: number;
