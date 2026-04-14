@@ -191,12 +191,16 @@ export default function App() {
         if ((layerMask[i] ?? 0) > 0) {
           const row = Math.floor(i / cols);
           const col = i % cols;
-          // Strong hash: mix seed + col + row to get reveal order value
+          // Robust hash: fully mix seed bytes with col+row, use multiple passes
           let h = 5381;
-          for (let j = 0; j < seed.length; j++) h = (Math.imul(h, 33) ^ seed[j]!) >>> 0;
-          h = (Math.imul(h, 33) ^ col) >>> 0;
-          h = (Math.imul(h, 33) ^ row) >>> 0;
-          h = (Math.imul(h, 33) ^ (col * 73 + row * 97)) >>> 0;  // Extra mixing
+          for (let j = 0; j < seed.length; j++) {
+            h = (Math.imul(h, 33) ^ seed[j]!) >>> 0;
+          }
+          // Mix col and row with rotation and multiple constants to break both axes
+          h = (Math.imul(h, 65599) ^ col) >>> 0;
+          h = (Math.imul(h ^ (h >>> 16), 7141222) ^ row) >>> 0;
+          h = (Math.imul(h, 33) ^ (col ^ row)) >>> 0;
+          h = (Math.imul(h, 73) ^ (col * row)) >>> 0;  // Non-linear mixing
           cellRevealOrder.set(i, h >>> 0);
           totalTextCells++;
         }
