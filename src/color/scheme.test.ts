@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateColorScheme } from '../../src/rendering/color-scheme';
+import { generateColorScheme } from './scheme';
 
 describe('generateColorScheme', () => {
   it('returns RGB values in valid ranges', () => {

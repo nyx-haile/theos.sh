@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.playwright-mcp/
+package-lock.json
+*.log
+.DS_Store
+refs/
+phase6-smoke.png

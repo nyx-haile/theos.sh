@@ -1,10 +1,17 @@
-import { detectTier } from '../rendering/tier';
+import { detectRenderer } from '../renderers/detect';
 import { generateRawSeed, deriveSeed } from '../manifold/seed';
 import type { Seed, Tier, CapabilityMask } from '../manifold/types';
 
+function rendererToTier(): Tier {
+  const kind = detectRenderer();
+  if (kind === 'webgpu') return 1;
+  if (kind === 'webgl2') return 2;
+  return 3;
+}
+
 export class SystemProbe {
   run(): CapabilityMask {
-    const tier = detectTier();
+    const tier = rendererToTier();
     const device_pixel_ratio = typeof globalThis !== 'undefined' && 'devicePixelRatio' in globalThis
       ? (globalThis as any).devicePixelRatio
       : 1;
