@@ -35,6 +35,32 @@ export default function App() {
       // Narrative orchestrator with 2ms stagger for smooth reveal
       const orchestrator = new NarrativeOrchestrator(3, 2);
 
+      // Text mask for "theos.sh" title
+      const maskCanvas = document.createElement('canvas');
+      maskCanvas.width = cols;
+      maskCanvas.height = rows;
+      const maskCtx = maskCanvas.getContext('2d')!;
+      maskCtx.fillStyle = 'white';
+      maskCtx.textBaseline = 'middle';
+      maskCtx.textAlign = 'center';
+
+      // Scale text to ~65% of grid width
+      let fontSize = rows * 0.4;
+      maskCtx.font = `bold ${fontSize}px monospace`;
+      const naturalWidth = maskCtx.measureText('theos.sh').width;
+      if (naturalWidth > cols * 0.65) {
+        fontSize *= (cols * 0.65) / naturalWidth;
+        maskCtx.font = `bold ${fontSize}px monospace`;
+      }
+
+      maskCtx.fillText('theos.sh', cols / 2, rows / 2);
+
+      const pixels = maskCtx.getImageData(0, 0, cols, rows).data;
+      const textMask = new Uint8Array(rows * cols);
+      for (let i = 0; i < rows * cols; i++) {
+        textMask[i] = pixels[i * 4 + 3]! > 64 ? 1 : 0;
+      }
+
       // Generate field of descriptors using seed PRNG
       const prng = new Xoshiro256(new Uint8Array(seed));
       const descriptorCurv: Map<string, number> = new Map();
@@ -57,6 +83,9 @@ export default function App() {
           orchestrator.onModuleEnter([col, row, 0], descriptor);
         }
       }
+
+      // Dimmed accent color for text mask (60% lightness)
+      const accentDim = `rgb(${Math.round(scheme.accent.r * 0.6)},${Math.round(scheme.accent.g * 0.6)},${Math.round(scheme.accent.b * 0.6)})`;
 
       // Map char to color
       const charColor = (char: string): string => {
@@ -112,9 +141,13 @@ export default function App() {
         for (let row = 0; row < rows; row++) {
           for (let col = 0; col < cols; col++) {
             const char = renderer.getCell(col, row);
-            if (char !== ' ') {
-              ctx.fillStyle = charColor(char);
-              ctx.fillText(char, col * CELL_W, (row + 1) * CELL_H - 2);
+            const inText = textMask[row * cols + col] === 1;
+
+            if (inText || char !== ' ') {
+              const displayChar = inText ? '#' : char;
+              const color = inText ? accentDim : charColor(char);
+              ctx.fillStyle = color;
+              ctx.fillText(displayChar, col * CELL_W, (row + 1) * CELL_H - 2);
             }
           }
         }
