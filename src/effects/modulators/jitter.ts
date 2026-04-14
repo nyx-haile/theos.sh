@@ -34,8 +34,9 @@ const SLOT_HIT_PROB    = 0.30;
 const GEOM_P           = 0.9;
 const CHROMATIC_PROB   = 0.55;
 
-const CHROMA_A = 'rgb(80,255,230)';
-const CHROMA_B = 'rgb(255,80,180)';
+function brightenScheme(c: { r: number; g: number; b: number }, scale: number): string {
+  return `rgb(${Math.min(255, Math.round(c.r * scale))},${Math.min(255, Math.round(c.g * scale))},${Math.min(255, Math.round(c.b * scale))})`;
+}
 
 const KIND_WEIGHTS: Array<[GlitchKind, number]> = [
   ['rect',          0.15],
@@ -67,6 +68,8 @@ export const jitterEffect: Effect = {
     let gibberishMask: Uint8Array | null = null;
     let chromaMask: Int8Array | null = null;
     let colorGlitch = 'rgb(255,255,255)';
+    let chromaColorA = 'rgb(255,255,255)';
+    let chromaColorB = 'rgb(255,255,255)';
 
     app.on('maskReady', () => {
       const seed = app.manifoldState().seed;
@@ -169,8 +172,9 @@ export const jitterEffect: Effect = {
           }
         }
       }
-      const s = ctx.scheme.secondary;
-      colorGlitch = `rgb(${Math.min(255, Math.round(s.r * 2.5))},${Math.min(255, Math.round(s.g * 2.5))},${Math.min(255, Math.round(s.b * 2.5))})`;
+      colorGlitch  = brightenScheme(ctx.scheme.secondary, 2.5);
+      chromaColorA = brightenScheme(ctx.scheme.primary,    2.2);
+      chromaColorB = brightenScheme(ctx.scheme.accent,     2.2);
     }, { priority: 200 });
 
     app.on('frameBegin', ({ elapsed }, busCtx) => {
@@ -230,7 +234,7 @@ export const jitterEffect: Effect = {
             cell.charOverride = GIBBERISH.charAt(pick);
             cell.colorOverride = colorGlitch;
           } else if (chroma !== 0) {
-            cell.colorOverride = chroma > 0 ? CHROMA_A : CHROMA_B;
+            cell.colorOverride = chroma > 0 ? chromaColorA : chromaColorB;
           }
         }
       }
