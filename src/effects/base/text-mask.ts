@@ -11,7 +11,7 @@ function drawMaskCanvas(cols: number, rows: number, weight: 'normal' | 'bold'): 
   canvas.width  = w * MASK_SCALE;
   canvas.height = h * MASK_SCALE;
   const g = canvas.getContext('2d')!;
-  g.fillStyle = '#000'; g.fillRect(0, 0, canvas.width, canvas.height);
+  g.clearRect(0, 0, canvas.width, canvas.height);
   g.fillStyle = '#fff';
   const stacked = w < 40;
   const fontSize = stacked ? Math.floor(h * MASK_SCALE * 0.28) : Math.floor(h * MASK_SCALE * 0.56);
