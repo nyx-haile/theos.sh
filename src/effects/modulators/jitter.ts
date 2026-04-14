@@ -8,7 +8,10 @@ declare module '../../signals/catalog' {
   }
 }
 
+type GlitchKind = 'rect' | 'vertical' | 'horizontal' | 'interlace' | 'skew' | 'block';
+
 interface GlitchEvent {
+  kind:        GlitchKind;
   startMs:     number;
   durationMs:  number;
   rowStart:    number;
@@ -17,6 +20,7 @@ interface GlitchEvent {
   colEnd:      number;
   shiftDx:     number;
   shiftDy:     number;
+  slope:       number; // cells of dx-drift per row, used by `skew`
   gibberish:   boolean;
 }
 
@@ -25,6 +29,22 @@ const EVENT_HORIZON_MS = 60_000;
 const SLOT_MS          = 220;
 const SLOT_HIT_PROB    = 0.30;
 const GEOM_P           = 0.9;
+
+// Cumulative kind weights — must sum to 1.0.
+const KIND_WEIGHTS: Array<[GlitchKind, number]> = [
+  ['rect',      0.22],
+  ['vertical',  0.14],
+  ['horizontal',0.16],
+  ['interlace', 0.16],
+  ['skew',      0.16],
+  ['block',     0.16],
+];
+
+function pickKind(u: number): GlitchKind {
+  let acc = 0;
+  for (const [k, w] of KIND_WEIGHTS) { acc += w; if (u < acc) return k; }
+  return 'rect';
+}
 
 export const jitterEffect: Effect = {
   name: 'jitter',
@@ -56,21 +76,64 @@ export const jitterEffect: Effect = {
           const u = prng.nextFloat();
           const count = Math.max(1, Math.ceil(Math.log(1 - u) / Math.log(1 - GEOM_P)));
           for (let k = 0; k < count; k++) {
-            const vertical = prng.nextFloat() < 0.35;
-            const rowStart = Math.floor(prng.nextFloat() * rows);
-            const rowSpan  = vertical ? rows : 1 + Math.floor(prng.nextFloat() * 5);
-            const colStart = Math.floor(prng.nextFloat() * cols);
-            const colSpan  = vertical ? 1 + Math.floor(prng.nextFloat() * 4) : 3 + Math.floor(prng.nextFloat() * 15);
+            const kind = pickKind(prng.nextFloat());
+            let rowStart = Math.floor(prng.nextFloat() * rows);
+            let rowSpan  = 1 + Math.floor(prng.nextFloat() * 5);
+            let colStart = Math.floor(prng.nextFloat() * cols);
+            let colSpan  = 3 + Math.floor(prng.nextFloat() * 15);
+            let shiftDx  = Math.round((prng.nextFloat() - 0.5) * 14);
+            let shiftDy  = Math.round((prng.nextFloat() - 0.5) * 4);
+            let slope    = 0;
+            let gibberish = prng.nextFloat() < 0.55;
+
+            switch (kind) {
+              case 'vertical':
+                rowStart = 0; rowSpan = rows;
+                colSpan = 1 + Math.floor(prng.nextFloat() * 4);
+                break;
+              case 'horizontal':
+                colStart = 0; colSpan = cols;
+                rowSpan = 1 + Math.floor(prng.nextFloat() * 3);
+                shiftDy = 0; // pure horizontal tear
+                break;
+              case 'interlace':
+                // small rect, shift alternates per row
+                rowSpan = 3 + Math.floor(prng.nextFloat() * 6);
+                colSpan = 5 + Math.floor(prng.nextFloat() * 20);
+                shiftDx = Math.max(2, Math.round(Math.abs(shiftDx)));
+                shiftDy = 0;
+                break;
+              case 'skew':
+                rowSpan = 3 + Math.floor(prng.nextFloat() * 8);
+                colSpan = 5 + Math.floor(prng.nextFloat() * 20);
+                slope = (prng.nextFloat() < 0.5 ? -1 : 1) * (1 + prng.nextFloat() * 2);
+                shiftDx = Math.round((prng.nextFloat() - 0.5) * 4);
+                shiftDy = 0;
+                break;
+              case 'block':
+                rowSpan = 2 + Math.floor(prng.nextFloat() * 5);
+                colSpan = 4 + Math.floor(prng.nextFloat() * 12);
+                shiftDx = 0; shiftDy = 0;
+                gibberish = true;
+                break;
+              case 'rect':
+              default:
+                // keep defaults
+                break;
+            }
+
             events.push({
+              kind,
               startMs:    t + prng.nextFloat() * SLOT_MS,
               durationMs: 40 + prng.nextFloat() * 80,
-              rowStart:   vertical ? 0 : rowStart,
-              rowEnd:     vertical ? rows - 1 : Math.min(rows - 1, rowStart + rowSpan - 1),
+              rowStart,
+              rowEnd:     Math.min(rows - 1, rowStart + rowSpan - 1),
               colStart,
               colEnd:     Math.min(cols - 1, colStart + colSpan - 1),
-              shiftDx:    Math.round((prng.nextFloat() - 0.5) * 14),
-              shiftDy:    Math.round((prng.nextFloat() - 0.5) * 4),
-              gibberish:  prng.nextFloat() < 0.55,
+              shiftDx,
+              shiftDy,
+              slope,
+              gibberish,
             });
           }
         }
@@ -88,9 +151,12 @@ export const jitterEffect: Effect = {
         if (elapsed < ev.startMs || elapsed >= ev.startMs + ev.durationMs) continue;
         for (let r = ev.rowStart; r <= ev.rowEnd; r++) {
           const rowBase = r * cols;
+          let rowDx = ev.shiftDx;
+          if (ev.kind === 'interlace') rowDx = (r & 1) === 0 ? ev.shiftDx : -ev.shiftDx;
+          else if (ev.kind === 'skew') rowDx = ev.shiftDx + Math.round((r - ev.rowStart) * ev.slope);
           for (let c = ev.colStart; c <= ev.colEnd; c++) {
             const idx = rowBase + c;
-            shiftDx[idx] = ev.shiftDx;
+            shiftDx[idx] = rowDx;
             shiftDy[idx] = ev.shiftDy;
             if (ev.gibberish) gibberishMask[idx] = 1;
           }
@@ -110,10 +176,11 @@ export const jitterEffect: Effect = {
       if (shiftDx && shiftDy && gibberishMask) {
         const idx = cell.row * rctx.cols + cell.col;
         const dx = shiftDx[idx]!, dy = shiftDy[idx]!;
-        if (dx !== 0 || dy !== 0) {
+        const gib = gibberishMask[idx] === 1;
+        if (dx !== 0 || dy !== 0 || gib) {
           cell.dx += dx;
           cell.dy += dy;
-          if (gibberishMask[idx] === 1) {
+          if (gib) {
             const pick = ((cell.col * 31 + cell.row * 17) >>> 0) % GIBBERISH.length;
             cell.charOverride = GIBBERISH.charAt(pick);
             cell.colorOverride = colorGlitch;
