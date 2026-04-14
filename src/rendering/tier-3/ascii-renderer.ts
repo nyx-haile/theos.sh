@@ -26,6 +26,19 @@ export class ASCIIRenderer {
     }
   }
 
+  setCell(col: number, row: number, char: string): void {
+    if (row >= 0 && row < this.height && col >= 0 && col < this.width) {
+      this.grid[row]![col] = char;
+    }
+  }
+
+  getCell(col: number, row: number): string {
+    if (row >= 0 && row < this.height && col >= 0 && col < this.width) {
+      return this.grid[row]![col]!;
+    }
+    return ' ';
+  }
+
   toString(): string {
     return this.grid.map(row => row.join('')).join('\n');
   }

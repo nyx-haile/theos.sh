@@ -12,10 +12,11 @@ export class NarrativeOrchestrator {
   pendingReveals: Reveal[] = [];
   activeReveals: Map<string, number> = new Map();
   private tier: Tier;
-  private staggerMs = 100;
+  private staggerMs: number;
 
-  constructor(tier: Tier) {
+  constructor(tier: Tier, staggerMs = 100) {
     this.tier = tier;
+    this.staggerMs = staggerMs;
   }
 
   onModuleEnter(coords: GeodesicCoords, descriptor: Descriptor): void {
