@@ -91,8 +91,7 @@ export default function App() {
       const height = window.innerHeight;
       const cols = Math.floor(width / CELL_W);
       const rows = Math.floor(height / CELL_H);
-
-      canvasRef.width = width;
+      canvasRef.width  = width;
       canvasRef.height = height;
 
       const gates = evalGates(seed);
@@ -219,14 +218,18 @@ export default function App() {
         return `rgb(${Math.min(255,r)},${Math.min(255,g)},${Math.min(255,b)})`;
       }
 
-      // Text uses secondary color (distinct from accent-dominant background)
-      // Face layer: bright secondary; shadow layer: dim secondary; scramble: near-invisible
+      // Text at high brightness using secondary hue — push well above background lightness
       const colorForLayer = (layer: number, density: number): string => {
-        const scale = layer === 3 ? 1.0 + density * 0.08 : 0.4;
-        return `rgb(${Math.min(255,Math.round(sR*scale))},${Math.min(255,Math.round(sG*scale))},${Math.min(255,Math.round(sB*scale))})`;
+        if (layer === 3) {
+          // Face: boost secondary to near-white, inner pixels (density=4) brightest
+          const scale = 1.8 + density * 0.12;
+          return `rgb(${Math.min(255,Math.round(sR*scale))},${Math.min(255,Math.round(sG*scale))},${Math.min(255,Math.round(sB*scale))})`;
+        }
+        // Shadow: dim secondary
+        return `rgb(${Math.round(sR*0.5)},${Math.round(sG*0.5)},${Math.round(sB*0.5)})`;
       };
-      const colorScramble = `rgb(${Math.round(aR*0.18)},${Math.round(aG*0.18)},${Math.round(aB*0.18)})`;
-      const colorGlitch   = `rgb(${Math.min(255,Math.round(aR*1.8))},${Math.min(255,Math.round(aG*1.8))},${Math.min(255,Math.round(aB*1.8))})`;
+      const colorScramble = `rgb(${Math.round(sR*0.4)},${Math.round(sG*0.4)},${Math.round(sB*0.4)})`;
+      const colorGlitch   = `rgb(${Math.min(255,Math.round(sR*2.5))},${Math.min(255,Math.round(sG*2.5))},${Math.min(255,Math.round(sB*2.5))})`;
 
       // --- Frame loop ---
       const ctx = canvasRef.getContext('2d')!;
