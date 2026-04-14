@@ -184,11 +184,14 @@ export default function App() {
         }
       }
 
-      // All text cells reveal at the same time (DECRYPT_DURATION ms after start)
+      // Text cells decrypt with random stagger per cell (seed-deterministic)
       const revealTime = new Float32Array(rows * cols).fill(Infinity);
       for (let i = 0; i < rows * cols; i++) {
         if ((layerMask[i] ?? 0) > 0) {
-          revealTime[i] = DECRYPT_DURATION;
+          // Random delay 0-600ms per cell, derived from seed
+          const cellRandom = gateHash(seed, `reveal:${i}`);
+          const staggerMs = cellRandom * 600;
+          revealTime[i] = DECRYPT_DURATION + staggerMs;
         }
       }
 
