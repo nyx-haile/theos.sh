@@ -1,13 +1,76 @@
 import { onMount, onCleanup } from 'solid-js';
+import * as THREE from 'three';
 import { runOriginPhase } from './origin/anchor';
 import { generateColorScheme } from './rendering/color-scheme';
-import { ASCIIRenderer } from './rendering/tier-3/ascii-renderer';
-import { NarrativeOrchestrator } from './narrative/orchestrator';
 import { Xoshiro256 } from './manifold/prng';
 import type { Descriptor } from './manifold/types';
 
 const CELL_W = 9;   // px per character (monospace)
 const CELL_H = 16;  // px per line height
+
+// --- Gate infrastructure ---
+
+function gateHash(seed: Uint8Array, name: string): number {
+  let h = 5381;
+  for (let i = 0; i < seed.length; i++) h = (Math.imul(h, 33) ^ seed[i]!) >>> 0;
+  for (let i = 0; i < name.length; i++) h = (Math.imul(h, 33) ^ name.charCodeAt(i)) >>> 0;
+  return h / 0x100000000;
+}
+
+function gateParam(seed: Uint8Array, name: string, sub: string): number {
+  return gateHash(seed, name + ':' + sub);
+}
+
+interface Gates {
+  shadow3D:       { active: boolean; angle: number; depth: number };
+  cellGlitch:     { active: boolean };
+  textDistortion: { active: boolean; amplitude: number; freq: number };
+  jitter:         { active: boolean; amplitude: number };
+  mirrorFlip:     { active: boolean; axis: 'h' | 'v' };
+  cameraAngle:    { active: boolean; tilt: number; azimuth: number };
+  manifoldGenus:  { active: boolean; genus: number };
+}
+
+function evalGates(seed: Uint8Array): Gates {
+  const p = (name: string, sub: string) => gateParam(seed, name, sub);
+  return {
+    shadow3D: {
+      active: gateHash(seed, 'shadow3D') < 0.75,
+      angle:  p('shadow3D', 'angle') * Math.PI * 2,
+      depth:  2 + Math.round(p('shadow3D', 'depth') * 3),
+    },
+    cellGlitch: {
+      active: gateHash(seed, 'cellGlitch') < 0.50,
+    },
+    textDistortion: {
+      active:    gateHash(seed, 'textDistortion') < 0.40,
+      amplitude: 0.15 + p('textDistortion', 'amp') * 0.25,
+      freq:      0.05 + p('textDistortion', 'freq') * 0.15,
+    },
+    jitter: {
+      active:    gateHash(seed, 'jitter') < 0.35,
+      amplitude: 0.1 + p('jitter', 'amp') * 0.2,
+    },
+    mirrorFlip: {
+      active: gateHash(seed, 'mirrorFlip') < 0.25,
+      axis:   p('mirrorFlip', 'axis') < 0.5 ? 'h' : 'v',
+    },
+    cameraAngle: {
+      active:  gateHash(seed, 'cameraAngle') < 0.60,
+      tilt:    0.15 + p('cameraAngle', 'tilt') * 0.35,
+      azimuth: p('cameraAngle', 'az') * Math.PI * 2,
+    },
+    manifoldGenus: {
+      active: gateHash(seed, 'manifoldGenus') < 0.30,
+      genus:  1 + Math.floor(p('manifoldGenus', 'count') * 3),
+    },
+  };
+}
+
+const DENSE_CHARS = ['.', ':', '+', '%', '#'] as const;
+const GIBBERISH   = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@$^&*<>?/' as const;
+const DECRYPT_DURATION = 2800;
+const GLITCH_GRACE     = 3500;
 
 export default function App() {
   let canvasRef: HTMLCanvasElement | undefined;
@@ -29,46 +92,16 @@ export default function App() {
       canvasRef.width = width;
       canvasRef.height = height;
 
-      // ASCII renderer
-      const renderer = new ASCIIRenderer(cols, rows);
+      const gates = evalGates(seed);
 
-      // Narrative orchestrator with 2ms stagger for smooth reveal
-      const orchestrator = new NarrativeOrchestrator(3, 2);
-
-      // Text mask for "theos.sh" title
-      const maskCanvas = document.createElement('canvas');
-      maskCanvas.width = cols;
-      maskCanvas.height = rows;
-      const maskCtx = maskCanvas.getContext('2d')!;
-      maskCtx.fillStyle = 'white';
-      maskCtx.textBaseline = 'middle';
-      maskCtx.textAlign = 'center';
-
-      // Scale text to ~65% of grid width
-      let fontSize = rows * 0.4;
-      maskCtx.font = `bold ${fontSize}px monospace`;
-      const naturalWidth = maskCtx.measureText('theos.sh').width;
-      if (naturalWidth > cols * 0.65) {
-        fontSize *= (cols * 0.65) / naturalWidth;
-        maskCtx.font = `bold ${fontSize}px monospace`;
-      }
-
-      maskCtx.fillText('theos.sh', cols / 2, rows / 2);
-
-      const pixels = maskCtx.getImageData(0, 0, cols, rows).data;
-      const textMask = new Uint8Array(rows * cols);
-      for (let i = 0; i < rows * cols; i++) {
-        textMask[i] = pixels[i * 4 + 3]! > 64 ? 1 : 0;
-      }
-
-      // Generate field of descriptors using seed PRNG
+      // --- Generate descriptor curvature field ---
       const prng = new Xoshiro256(new Uint8Array(seed));
       const descriptorCurv: Map<string, number> = new Map();
 
       for (let row = 0; row < rows; row++) {
         for (let col = 0; col < cols; col++) {
           const noise = prng.nextFloat();
-          const curvature = 1.0 + noise * 0.12; // range [1.0, 1.12]
+          const curvature = 1.0 + noise * 0.12;
           descriptorCurv.set(`${col},${row}`, curvature);
 
           const descriptor: Descriptor = {
@@ -79,75 +112,276 @@ export default function App() {
             color_params: { hue_offset: (noise - 0.5) * 0.3, saturation_scale: 0.8 + noise * 0.4 },
             force_field: { direction: [0, 0, 1], magnitude: 0 },
           };
-
-          orchestrator.onModuleEnter([col, row, 0], descriptor);
         }
       }
 
-      // Dimmed accent color for text mask (60% lightness)
-      const accentDim = `rgb(${Math.round(scheme.accent.r * 0.6)},${Math.round(scheme.accent.g * 0.6)},${Math.round(scheme.accent.b * 0.6)})`;
+      // --- Generate text mask with 3D layers ---
+      function drawMaskCanvas(offsetX: number, offsetY: number): Uint8ClampedArray {
+        const c = document.createElement('canvas');
+        c.width = cols; c.height = rows;
+        const cx = c.getContext('2d')!;
+        cx.fillStyle = 'white';
+        cx.textBaseline = 'middle';
+        cx.textAlign = 'center';
+        let fs = rows * 0.4;
+        cx.font = `bold ${fs}px monospace`;
+        const nw = cx.measureText('theos.sh').width;
+        if (nw > cols * 0.65) { fs *= (cols * 0.65) / nw; cx.font = `bold ${fs}px monospace`; }
+        cx.fillText('theos.sh', cols / 2 + offsetX, rows / 2 + offsetY);
+        return cx.getImageData(0, 0, cols, rows).data;
+      }
 
-      // Map char to color
-      const charColor = (char: string): string => {
-        if (char === '#') return `rgb(${scheme.accent.r},${scheme.accent.g},${scheme.accent.b})`;
-        if (char === '+') return `rgb(${scheme.primary.r},${scheme.primary.g},${scheme.primary.b})`;
-        if (char === '*') return `rgb(${scheme.secondary.r},${scheme.secondary.g},${scheme.secondary.b})`;
-        return `rgb(${scheme.background.r},${scheme.background.g},${scheme.background.b})`;
+      const rawFacePixels   = drawMaskCanvas(0, 0);
+      const shadowPixels    = gates.shadow3D.active
+        ? drawMaskCanvas(
+            Math.round(Math.cos(gates.shadow3D.angle) * gates.shadow3D.depth),
+            Math.round(Math.sin(gates.shadow3D.angle) * gates.shadow3D.depth),
+          )
+        : null;
+
+      function sampleFacePixelAlpha(col: number, row: number): number {
+        if (!gates.textDistortion.active) return rawFacePixels[row * cols * 4 + col * 4 + 3]!;
+        const dx = Math.round(gates.textDistortion.amplitude * Math.sin(row * gates.textDistortion.freq * Math.PI * 2));
+        const sc = Math.max(0, Math.min(cols - 1, col - dx));
+        return rawFacePixels[row * cols * 4 + sc * 4 + 3]!;
+      }
+
+      const layerMask = new Uint8Array(rows * cols);
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+          const i = row * cols + col;
+          const inFace   = sampleFacePixelAlpha(col, row) > 64;
+          const inShadow = shadowPixels ? shadowPixels[i * 4 + 3]! > 64 : false;
+          if      (inFace)   layerMask[i] = 3;
+          else if (inShadow) layerMask[i] = 1;
+        }
+      }
+
+      const textDensity = new Uint8Array(rows * cols);
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+          const idx = row * cols + col;
+          if (layerMask[idx] !== 3) continue;
+          let n = 0;
+          for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+            if (dr === 0 && dc === 0) continue;
+            const nr = row + dr, nc = col + dc;
+            if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && layerMask[nr * cols + nc] === 3) n++;
+          }
+          textDensity[idx] = Math.min(4, Math.floor(n / 2));
+        }
+      }
+
+      const textCellIndices: number[] = [];
+      for (let i = 0; i < rows * cols; i++) {
+        if ((layerMask[i] ?? 0) > 0) textCellIndices.push(i);
+      }
+      const cx2 = cols / 2, cy2 = rows / 2;
+      textCellIndices.sort((a, b) => {
+        const ar = Math.floor(a / cols), ac = a % cols;
+        const br = Math.floor(b / cols), bc = b % cols;
+        return ((ac-cx2)**2+(ar-cy2)**2) - ((bc-cx2)**2+(br-cy2)**2);
+      });
+      const revealTime = new Float32Array(rows * cols).fill(Infinity);
+      textCellIndices.forEach((ci, k) => {
+        revealTime[ci] = (k / textCellIndices.length) * DECRYPT_DURATION;
+      });
+
+      // --- Three.js scene setup ---
+      const threeCanvas = document.createElement('canvas');
+      threeCanvas.width  = cols;
+      threeCanvas.height = rows;
+      const renderer = new THREE.WebGLRenderer({ canvas: threeCanvas, antialias: false, alpha: false });
+      renderer.setSize(cols, rows, false);
+      renderer.setClearColor(0x000000, 1);
+
+      const scene  = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(60, cols / rows, 0.1, 100);
+
+      if (gates.cameraAngle.active) {
+        const tilt = gates.cameraAngle.tilt;
+        const az   = gates.cameraAngle.azimuth;
+        const dist = 3;
+        camera.position.set(
+          Math.sin(az) * Math.sin(tilt) * dist,
+          -Math.cos(az) * Math.sin(tilt) * dist,
+          Math.cos(tilt) * dist,
+        );
+      } else {
+        camera.position.set(0, 0, 3);
+      }
+      camera.lookAt(0, 0, 0);
+
+      const dirLight = new THREE.DirectionalLight(0xffffff, gates.shadow3D.active ? 1.2 : 0.6);
+      if (gates.shadow3D.active) {
+        const a = gates.shadow3D.angle;
+        dirLight.position.set(Math.cos(a) * 3, Math.sin(a) * 3, 2);
+      } else {
+        dirLight.position.set(1, 1, 2);
+      }
+      scene.add(dirLight);
+      scene.add(new THREE.AmbientLight(0xffffff, 0.3));
+
+      // --- Manifold geometry ---
+      const geo = new THREE.PlaneGeometry(2, 2, cols - 1, rows - 1);
+      const positions = geo.attributes['position']!.array as Float32Array;
+
+      const curvArr  = new Float32Array(cols * rows);
+      const layerArr = new Float32Array(cols * rows);
+      const baseXArr = new Float32Array(cols * rows);
+
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+          const vIdx = (rows - 1 - row) * cols + col;
+          curvArr[vIdx]  = descriptorCurv.get(`${col},${row}`) ?? 1.0;
+          layerArr[vIdx] = layerMask[row * cols + col] ?? 0;
+          baseXArr[vIdx] = positions[vIdx * 3 + 0] ?? 0;
+        }
+      }
+
+      for (let v = 0; v < cols * rows; v++) {
+        const layer = layerArr[v]!;
+        positions[v * 3 + 2] = (curvArr[v]! - 1.0) * 5.0
+          + (layer === 3 ? 0.45 : layer === 1 ? 0.2 : 0.0);
+      }
+      geo.attributes['position']!.needsUpdate = true;
+      geo.computeVertexNormals();
+
+      if (gates.mirrorFlip.active) {
+        const axis = gates.mirrorFlip.axis === 'h' ? 0 : 1;
+        for (let v = 0; v < cols * rows; v++) {
+          baseXArr[v] = axis === 0 ? -baseXArr[v]! : baseXArr[v]!;
+          positions[v * 3 + axis] = (positions[v * 3 + axis] ?? 0) * -1;
+        }
+        geo.attributes['position']!.needsUpdate = true;
+        geo.computeVertexNormals();
+      }
+
+      const mat = new THREE.MeshLambertMaterial({
+        color: new THREE.Color(scheme.primary.r / 255, scheme.primary.g / 255, scheme.primary.b / 255),
+      });
+      const mesh = new THREE.Mesh(geo, mat);
+      scene.add(mesh);
+
+      // --- Color helpers for text cells ---
+      const aR = scheme.accent.r, aG = scheme.accent.g, aB = scheme.accent.b;
+      const colorForLayer = (layer: number, density: number): string => {
+        const scale = layer === 3 ? 0.55 + density * 0.09 : 0.28;
+        return `rgb(${Math.round(aR*scale)},${Math.round(aG*scale)},${Math.round(aB*scale)})`;
       };
+      const colorScramble = `rgb(${Math.round(aR*0.22)},${Math.round(aG*0.22)},${Math.round(aB*0.22)})`;
+      const colorGlitch   = `rgb(${Math.min(255,Math.round(aR*1.5))},${Math.min(255,Math.round(aG*1.5))},${Math.min(255,Math.round(aB*1.5))})`;
 
-      // Curvature to char mapping
-      const charFromCurvature = (curvature: number): string => {
-        return curvature > 1.05 ? '#' : curvature > 1.02 ? '+' : '*';
-      };
-
-      // Canvas context
+      // --- Frame loop ---
+      const pixelBuffer = new Uint8Array(cols * rows * 4);
       const ctx = canvasRef.getContext('2d')!;
-      const startTime = performance.now();
+      ctx.font = '14px monospace';
       let rafId: number;
+      const startTime = performance.now();
+
+      const jitterSeeds = new Float32Array(rows);
+      for (let r = 0; r < rows; r++) jitterSeeds[r] = gateHash(seed, `jitter:row:${r}`);
 
       function frame() {
         const elapsed = performance.now() - startTime;
-
-        // Process all reveals due by now
-        while (orchestrator.pendingReveals.length > 0 && orchestrator.pendingReveals[0]!.delay <= elapsed) {
-          const reveal = orchestrator.processNextReveal();
-          if (reveal) {
-            const col = Math.floor(reveal.coords[0]);
-            const row = Math.floor(reveal.coords[1]);
-            const char = charFromCurvature(Math.abs(reveal.descriptor.curvature_tensor[0]?.[0] ?? 1));
-            renderer.setCell(col, row, char);
-          }
-        }
-
-        // Continuous animation: modulate curvature based on time + position
         const timePhase = (elapsed / 800) * Math.PI * 2;
+
+        // Update vertex positions
         for (let row = 0; row < rows; row++) {
           for (let col = 0; col < cols; col++) {
-            const key = `${col},${row}`;
-            const baseCurv = descriptorCurv.get(key) ?? 1.0;
-            const modulation = 0.03 * Math.sin(timePhase + col * 0.3 + row * 0.5);
-            const animatedCurv = baseCurv + modulation;
-            const char = charFromCurvature(animatedCurv);
-            renderer.setCell(col, row, char);
+            const vIdx  = (rows - 1 - row) * cols + col;
+            const idx   = row * cols + col;
+            const curv  = curvArr[vIdx]!;
+            const layer = layerArr[vIdx]!;
+
+            const wave    = 0.03 * Math.sin(timePhase + col * 0.3 + row * 0.5);
+            let zDisp = (curv + wave - 1.0) * 5.0;
+
+            if (layer > 0) {
+              const revealed = elapsed >= revealTime[idx]!;
+              const revealProgress = revealed
+                ? Math.min(1, (elapsed - revealTime[idx]!) / 200)
+                : 0;
+              const textZ = (layer === 3 ? 0.45 : 0.2) * revealProgress;
+              zDisp += textZ;
+
+              if (gates.textDistortion.active) {
+                const xShift = gates.textDistortion.amplitude
+                  * Math.sin(row * gates.textDistortion.freq * Math.PI * 2);
+                positions[vIdx * 3] = baseXArr[vIdx]! + xShift;
+              }
+
+              if (gates.jitter.active && !revealed) {
+                const jb = jitterSeeds[row]!;
+                if (jb < 0.12) {
+                  const current = positions[vIdx * 3] ?? 0;
+                  positions[vIdx * 3] = current + (jb < 0.06 ? 1 : -1) * gates.jitter.amplitude;
+                }
+              }
+            }
+
+            positions[vIdx * 3 + 2] = zDisp;
           }
         }
+        mesh.geometry.attributes['position']!.needsUpdate = true;
+        mesh.geometry.computeVertexNormals();
 
-        // Draw to canvas
+        // Render 3D scene
+        renderer.render(scene, camera);
+        const glCtx = threeCanvas.getContext('webgl2') ?? threeCanvas.getContext('webgl')!;
+        (glCtx as WebGLRenderingContext).readPixels(
+          0, 0, cols, rows,
+          (glCtx as WebGLRenderingContext).RGBA,
+          (glCtx as WebGLRenderingContext).UNSIGNED_BYTE,
+          pixelBuffer,
+        );
+
+        // ASCII map
         const bgRgb = `rgb(${scheme.background.r},${scheme.background.g},${scheme.background.b})`;
         ctx.fillStyle = bgRgb;
         ctx.fillRect(0, 0, width, height);
-        ctx.font = '14px monospace';
 
         for (let row = 0; row < rows; row++) {
+          const srcRow = rows - 1 - row;
           for (let col = 0; col < cols; col++) {
-            const char = renderer.getCell(col, row);
-            const inText = textMask[row * cols + col] === 1;
+            const pOff   = (srcRow * cols + col) * 4;
+            const r = pixelBuffer[pOff]!;
+            const g = pixelBuffer[pOff + 1]!;
+            const b = pixelBuffer[pOff + 2]!;
+            const lum = (r * 0.2126 + g * 0.7152 + b * 0.0722) / 255;
 
-            if (inText || char !== ' ') {
-              const displayChar = inText ? '#' : char;
-              const color = inText ? accentDim : charColor(char);
-              ctx.fillStyle = color;
-              ctx.fillText(displayChar, col * CELL_W, (row + 1) * CELL_H - 2);
+            const idx   = row * cols + col;
+            const layer = layerMask[idx] ?? 0;
+
+            if (layer === 0) {
+              if (lum < 0.04) continue;
+              const ci = Math.min(4, Math.floor(lum * 5));
+              ctx.fillStyle = `rgb(${r},${g},${b})`;
+              ctx.fillText(DENSE_CHARS[ci]!, col * CELL_W, (row + 1) * CELL_H - 2);
+            } else {
+              const revealed = elapsed >= revealTime[idx]!;
+
+              let glitching = false;
+              if (gates.cellGlitch.active && revealed && elapsed > GLITCH_GRACE) {
+                const gPeriod   = 3000 + gateParam(seed, `cellGlitch:${idx}`, 'period') * 12000;
+                const gPhase    = gateParam(seed, `cellGlitch:${idx}`, 'phase') * gPeriod;
+                const gDuration = 60 + gateParam(seed, `cellGlitch:${idx}`, 'dur') * 120;
+                glitching = (elapsed + gPhase) % gPeriod < gDuration;
+              }
+
+              if (!revealed || glitching) {
+                const gIdx = Math.floor((elapsed / 55 + idx * 13.7)) % GIBBERISH.length;
+                ctx.fillStyle = glitching ? colorGlitch : colorScramble;
+                ctx.fillText(GIBBERISH[gIdx]!, col * CELL_W, (row + 1) * CELL_H - 2);
+              } else {
+                const density = textDensity[idx] ?? 0;
+                const lumDriven = Math.min(4, Math.max(0, Math.round(lum * 6 - 0.5)));
+                const d = layer === 3
+                  ? Math.round((lumDriven + density) / 2)
+                  : Math.max(0, lumDriven - 1);
+                ctx.fillStyle = colorForLayer(layer, density as number);
+                ctx.fillText(DENSE_CHARS[Math.min(4, d)]!, col * CELL_W, (row + 1) * CELL_H - 2);
+              }
             }
           }
         }
@@ -159,6 +393,7 @@ export default function App() {
 
       onCleanup(() => {
         cancelAnimationFrame(rafId);
+        renderer.dispose();
       });
     } catch (e) {
       console.error('App error:', e);
