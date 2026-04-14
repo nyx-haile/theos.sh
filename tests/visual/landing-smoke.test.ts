@@ -19,7 +19,7 @@ beforeAll(async () => {
   browser = await puppeteer.launch();
   page = await browser.newPage();
   await page.setViewport({ width: 1280, height: 720 });
-  await page.goto(`http://localhost:${PORT}`, { waitUntil: 'networkidle0' });
+  await page.goto(`http://localhost:${PORT}`, { waitUntil: 'load' });
   await new Promise((r) => setTimeout(r, 3000));
 }, 60_000);
 

@@ -12,7 +12,7 @@ export const textCellsEffect: Effect = {
       if (!isRevealed(idx)) return;
       const density = ctx.textDensity[idx]!;
       cell.layer = layer === 3 ? 'face' : 'shadow';
-      cell.density = density / 4;
+      cell.density = layer === 3 ? density / 4 : 0.35 + (density / 4) * 0.25;
       const baseScale = layer === 3 ? 1.8 + density * 0.12 : 0.5;
       const { secondary: s } = ctx.scheme;
       const r = Math.min(1, s.r * baseScale / 255);
