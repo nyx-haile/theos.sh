@@ -3,6 +3,22 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="alternate" media="(prefers-reduced-motion: reduce)" href="/a11y/">
+  <link rel="alternate" media="(prefers-contrast: more)" href="/a11y/">
+  <script>
+    (function () {
+      try {
+        var key = 'theos:skipA11yRedirect';
+        if (sessionStorage.getItem(key) !== null) {
+          sessionStorage.removeItem(key);
+          return;
+        }
+        var rm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+        var hc = matchMedia('(prefers-contrast: more)').matches;
+        if (rm || hc) location.replace('/a11y/');
+      } catch (e) {}
+    })();
+  </script>
   <title>theos.sh — procedural manifold</title>
   <style>
     * {
