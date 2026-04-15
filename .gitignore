@@ -6,3 +6,8 @@ package-lock.json
 .DS_Store
 refs/
 phase6-smoke.png
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
