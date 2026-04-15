@@ -7,7 +7,7 @@ export const textDistortionEffect: Effect = {
     app.on('buildMask', () => {
       const ctx = app.context();
       const seed = app.manifoldState().seed;
-      if (gate(seed, 'textDistortion') >= 0.40) return;
+      if (ctx.hc || gate(seed, 'textDistortion') >= 0.40) return;
       const amplitude = 0.15 + gateParam(seed, 'textDistortion', 'amp') * 0.25;
       const freq      = 0.05 + gateParam(seed, 'textDistortion', 'freq') * 0.15;
       ctx.sampleFace = (col: number, row: number): number => {
