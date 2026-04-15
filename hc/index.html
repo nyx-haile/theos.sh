@@ -2,9 +2,18 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>hc stub</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>theos.sh — high contrast</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: ui-monospace, monospace; background: #000; color: #fff; overflow: hidden; }
+    #app { width: 100vw; height: 100vh; }
+    #back { position: fixed; top: 1rem; left: 1rem; color: #fff; text-decoration: underline; z-index: 10; font-size: 1rem; }
+    #back:focus-visible { outline: 2px solid #ffd60a; }
+  </style>
 </head>
 <body>
+  <a id="back" href="/a11y/">← Back to accessible version</a>
   <div id="app"></div>
   <script src="/src/hc-entry.tsx" type="module"></script>
 </body>
