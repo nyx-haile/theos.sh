@@ -7,13 +7,14 @@ export interface ContextInit {
   cellW: number;
   cellH: number;
   scheme: ColorScheme;
+  hc?: boolean;
 }
 
 export function createRenderContext(init: ContextInit): RenderContext {
-  const { rows, cols, cellW, cellH, scheme } = init;
+  const { rows, cols, cellW, cellH, scheme, hc = false } = init;
   const size = rows * cols;
   const ctx: RenderContext = {
-    rows, cols, cellW, cellH, scheme,
+    rows, cols, cellW, cellH, scheme, hc,
     palette: [' ', '.', ':', '*', '#'],
     curvField:   new Float32Array(size),
     satField:    new Float32Array(size).fill(1),

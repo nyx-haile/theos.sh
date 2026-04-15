@@ -15,6 +15,7 @@ export interface ApplicatorInit {
   cellW: number;
   cellH: number;
   renderer: Renderer;
+  hc?: boolean;
 }
 
 export interface FrameRecorder {

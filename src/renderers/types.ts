@@ -34,6 +34,7 @@ export interface RenderContext {
   rawFacePixels:        Uint8Array;
   sampleFace(col: number, row: number): number;
   readonly frame: { elapsed: number; dt: number; timePhase: number };
+  readonly hc: boolean;
   asciiFont?: string;
 }
 
