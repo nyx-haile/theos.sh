@@ -2,6 +2,6 @@
   "database": "dolt",
   "backend": "dolt",
   "dolt_mode": "server",
-  "dolt_database": "theos.sh",
+  "dolt_database": "theos_sh",
   "project_id": "a02655c8-dfc6-4331-8b47-57a5d21fdab4"
 }
