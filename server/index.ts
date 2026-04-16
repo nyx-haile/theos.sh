@@ -136,6 +136,21 @@ async function handle(req: Request, ctx: Ctx): Promise<Response> {
     });
   }
 
+  if (req.method === 'GET') {
+    const { join } = await import('node:path');
+    let rel = url.pathname;
+    if (rel === '/') rel = '/index.html';
+    else if (rel.endsWith('/')) rel = rel + 'index.html';
+    try {
+      const bytes = await readFile(join('./dist', rel));
+      const ct = rel.endsWith('.html') ? 'text/html; charset=utf-8'
+        : rel.endsWith('.js') ? 'text/javascript'
+        : rel.endsWith('.css') ? 'text/css'
+        : 'application/octet-stream';
+      return new Response(bytes, { status: 200, headers: { 'content-type': ct } });
+    } catch { /* fall through to 404 */ }
+  }
+
   return new Response(null, { status: 404 });
 }
 
