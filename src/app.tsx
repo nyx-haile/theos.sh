@@ -1,15 +1,26 @@
-import { onMount, onCleanup } from 'solid-js';
+import { onMount, onCleanup, createSignal, Show } from 'solid-js';
 import { runOriginPhase } from './origin/anchor';
 import { generateColorScheme } from './color/scheme';
 import { Applicator } from './applicator';
 import { ASCIIRenderer } from './renderers/ascii';
-import { registerAll } from './effects/registry';
-import { wireInputMapper } from './input/input-mapper';
+import { registerAll, makeHintOverlayEffect } from './effects/registry';
+import { ContentRegistry } from './content/registry';
+import { createManifoldFn } from './manifold/manifold-fn';
+import { ViewportManager } from './viewport/viewport-manager';
+import { createVisibilityStore } from './game/visibility-store';
+import { createSessionClient } from './game/session-client';
+import { attachFixedBindings } from './game/fixed-bindings';
+import { DetailView } from './game/detail-view';
+import type { ContentModule } from './content/types';
 
 const CELL_W = 15, CELL_H = 15;
 
 export default function App() {
   let canvasRef: HTMLCanvasElement | undefined;
+  const [hintVisible, setHintVisible] = createSignal(false);
+  const [openHandle, setOpenHandle] = createSignal<string | null>(null);
+
+  const client = createSessionClient();
 
   onMount(() => {
     if (!canvasRef) return;
@@ -27,20 +38,95 @@ export default function App() {
       const canvas2d = canvasRef.getContext('2d')!;
       const renderer = new ASCIIRenderer(canvas2d, CELL_W, CELL_H);
       const app = new Applicator({ seed, scheme, rows, cols, cellW: CELL_W, cellH: CELL_H, renderer });
-      registerAll(app);
-      app.boot();
-      const disposeInput = wireInputMapper(app);
 
+      // --- game layer ---
+      const stubModule: ContentModule = {
+        id: 'stub', type: 'origin',
+        render_hints: { tier1: { splat_scale: 1, sdf_morph: false }, tier2: { warp_intensity: 0, sdf_morph: false }, tier3: { ascii_density: 1, border_char: '.' } },
+        content: '', interactions: [],
+      };
+      const contentReg = new ContentRegistry([stubModule]);
+      const manifoldFn = createManifoldFn(seed, contentReg.length);
+      const vm = new ViewportManager(manifoldFn, contentReg, 2);
+      const store = createVisibilityStore();
+
+      const hintEffect = makeHintOverlayEffect(
+        () => store,
+        () => ({
+          centerCol: Math.round(vm.position[0]) + Math.floor(cols / 2),
+          centerRow: Math.round(vm.position[1]) + Math.floor(rows / 2),
+        }),
+      );
+
+      // register effects (including hint overlay)
+      registerAll(app);
+      hintEffect.register(app);
+      app.boot();
+
+      // fixed bindings: WASD/arrows
+      const disposeBindings = attachFixedBindings(window, (op) => {
+        vm.dispatch(op);
+        store.updateViewport({
+          centerCol: Math.round(vm.position[0]),
+          centerRow: Math.round(vm.position[1]),
+        });
+      });
+
+      // async session + visibility
+      client.openSession(seed)
+        .then(s => client.fetchVisibility(s.sessionId, { centerCol: vm.position[0], centerRow: vm.position[1], radius: 20 }))
+        .then(v => store.replace(v.visible, { centerCol: vm.position[0], centerRow: vm.position[1] }))
+        .catch(e => console.warn('game boot: visibility unavailable', e));
+
+      // Enter key handler
+      const onEnter = (e: KeyboardEvent) => {
+        if (e.key === 'Enter' && hintVisible() && !openHandle()) {
+          const near = store.inProximityOf(1.5);
+          if (near) setOpenHandle(near.handle);
+        }
+      };
+      window.addEventListener('keydown', onEnter);
+
+      // rAF loop
       let rafId = 0;
       const start = performance.now();
-      const tick = (now: number) => { app.tickFrame(now - start); rafId = requestAnimationFrame(tick); };
+      const tick = (now: number) => {
+        app.tickFrame(now - start);
+
+        // per-frame proximity check
+        const near = store.inProximityOf(1.5);
+        setHintVisible(!!near);
+
+        rafId = requestAnimationFrame(tick);
+      };
       rafId = requestAnimationFrame(tick);
 
-      onCleanup(() => { cancelAnimationFrame(rafId); disposeInput(); app.dispose(); });
+      onCleanup(() => {
+        cancelAnimationFrame(rafId);
+        disposeBindings();
+        window.removeEventListener('keydown', onEnter);
+        app.dispose();
+      });
     } catch (e) {
       console.error('App error:', e);
     }
   });
 
-  return <canvas ref={canvasRef} style={{ display:'block', width:'100vw', height:'100vh', margin:0, padding:0 }} />;
+  return (
+    <>
+      <canvas ref={canvasRef} style={{ display:'block', width:'100vw', height:'100vh', margin:0, padding:0 }} />
+      <Show when={hintVisible() && !openHandle()}>
+        <div data-testid="proximity-hint" style={{
+          position: 'fixed', bottom: '2rem', left: '50%', transform: 'translateX(-50%)',
+          'z-index': '5', color: '#e0e0e0',
+          'font-family': 'ui-monospace, monospace',
+          'font-size': '0.9rem',
+          opacity: '0.85',
+        }}>press enter to open</div>
+      </Show>
+      <Show when={openHandle()}>
+        <DetailView handle={openHandle()!} client={client} onClose={() => setOpenHandle(null)} />
+      </Show>
+    </>
+  );
 }
