@@ -31,6 +31,7 @@
     "babel-preset-solid": "^1.9.12",
     "bun-types": "^1.1.0",
     "canvas": "^3.2.3",
+    "happy-dom": "^20.9.0",
     "jsdom": "^29.0.2",
     "puppeteer": "^24.40.0",
     "typescript": "^5.4.5",
