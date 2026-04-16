@@ -215,10 +215,12 @@ export const jitterEffect: Effect = {
     }, { priority: 100 });
 
     app.registerCellContributor('jitter', (cell, rctx) => {
+      const worldCol = cell.col + rctx.viewportCol;
+      const worldRow = cell.row + rctx.viewportRow;
       if (baseActive) {
-        const idx = cell.row * rctx.cols + cell.col;
-        const n1 = ((idx * 2654435761) >>> 0) / 0xffffffff - 0.5;
-        const n2 = (((idx + 991) * 40503) >>> 0) / 0xffffffff - 0.5;
+        const wIdx = worldRow * rctx.cols + worldCol;
+        const n1 = ((wIdx * 2654435761) >>> 0) / 0xffffffff - 0.5;
+        const n2 = (((wIdx + 991) * 40503) >>> 0) / 0xffffffff - 0.5;
         cell.dx += n1 * baseAmp * 2;
         cell.dy += n2 * baseAmp * 2;
       }
@@ -231,7 +233,7 @@ export const jitterEffect: Effect = {
           cell.dx += dx;
           cell.dy += dy;
           if (gib) {
-            const pick = ((cell.col * 31 + cell.row * 17) >>> 0) % GIBBERISH.length;
+            const pick = ((worldCol * 31 + worldRow * 17) >>> 0) % GIBBERISH.length;
             cell.charOverride = GIBBERISH.charAt(pick);
             cell.colorOverride = colorGlitch;
           } else if (chroma !== 0) {

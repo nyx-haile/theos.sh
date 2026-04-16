@@ -90,7 +90,10 @@ export default function App() {
       // rAF loop
       let rafId = 0;
       const start = performance.now();
+      const ctx = app.context();
       const tick = (now: number) => {
+        ctx.viewportCol = Math.round(vm.position[0]);
+        ctx.viewportRow = Math.round(vm.position[1]);
         app.tickFrame(now - start);
 
         // per-frame proximity check

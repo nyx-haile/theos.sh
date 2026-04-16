@@ -6,7 +6,11 @@ export const textCellsEffect: Effect = {
   name: 'text-cells',
   register(app) {
     app.registerCellContributor('text-cells', (cell, ctx) => {
-      const idx = cell.row * ctx.cols + cell.col;
+      // Map screen cell to world position; the text mask lives at world origin.
+      const worldRow = cell.row + ctx.viewportRow;
+      const worldCol = cell.col + ctx.viewportCol;
+      if (worldRow < 0 || worldRow >= ctx.rows || worldCol < 0 || worldCol >= ctx.cols) return;
+      const idx = worldRow * ctx.cols + worldCol;
       const layer = ctx.layerMask[idx];
       if (layer === undefined || layer <= 0) return;
       if (!isRevealed(idx)) return;

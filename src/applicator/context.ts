@@ -24,6 +24,8 @@ export function createRenderContext(init: ContextInit): RenderContext {
     sampleFace(col: number, row: number): number {
       return ctx.rawFacePixels[row * cols + col] ?? 0;
     },
+    viewportCol: 0,
+    viewportRow: 0,
     frame: { elapsed: 0, dt: 0, timePhase: 0 },
   };
   return ctx;
