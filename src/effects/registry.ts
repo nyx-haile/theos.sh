@@ -12,6 +12,8 @@ import { backgroundWaveEffect }    from './base/background-wave';
 import { textCellsEffect }         from './base/text-cells';
 import { jitterEffect }            from './modulators/jitter';
 
+export { makeHintOverlayEffect } from './base/hint-overlay';
+
 export const ALL_EFFECTS = [
   charsetVariantEffect, fontVariationEffect,
   curvatureFieldEffect, saturationFieldEffect, manifoldGenusEffect,
