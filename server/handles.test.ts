@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, it, expect, beforeAll } from 'vitest';
 import { initHandleCrypto, sealHandle, openHandle, generateKeypair } from './handles';
 
