@@ -10,18 +10,33 @@ export interface DetailViewProps {
   onClose: () => void;
 }
 
+const CHARS_PER_FRAME = 3;
+
 export function DetailView(props: DetailViewProps) {
-  const [text, setText] = createSignal<string | null>(null);
+  const [revealed, setRevealed] = createSignal<string | null>(null);
   const [error, setError] = createSignal<string | null>(null);
 
   onMount(() => {
+    let fullText = '';
+    let cursor = 0;
+    let rafId = 0;
+
+    const reveal = () => {
+      cursor = Math.min(cursor + CHARS_PER_FRAME, fullText.length);
+      setRevealed(fullText.slice(0, cursor));
+      if (cursor < fullText.length) rafId = requestAnimationFrame(reveal);
+    };
+
     props.client.fetchArtifactText(props.handle)
-      .then(setText)
+      .then(t => { fullText = t; reveal(); })
       .catch((e) => setError(String(e.message ?? e)));
 
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') props.onClose(); };
     window.addEventListener('keydown', onKey);
-    onCleanup(() => window.removeEventListener('keydown', onKey));
+    onCleanup(() => {
+      cancelAnimationFrame(rafId);
+      window.removeEventListener('keydown', onKey);
+    });
   });
 
   return (
@@ -40,8 +55,8 @@ export function DetailView(props: DetailViewProps) {
       <Show when={error()}>
         <div data-testid="detail-error">unable to load artifact: {error()}</div>
       </Show>
-      <Show when={text() && !error()}>
-        <div data-testid="detail-content">{text()}</div>
+      <Show when={revealed() !== null && !error()}>
+        <div data-testid="detail-content">{revealed()}</div>
       </Show>
     </div>
   );
