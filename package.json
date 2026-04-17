@@ -12,7 +12,8 @@
     "test:run": "vitest run",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:visual": "vitest run --config vitest.visual.config.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "postinstall": "ln -sf ../../../libsodium/dist/modules-esm/libsodium.mjs node_modules/libsodium-wrappers/dist/modules-esm/libsodium.mjs 2>/dev/null || true"
   },
   "dependencies": {
     "@noble/hashes": "^2.2.0",
