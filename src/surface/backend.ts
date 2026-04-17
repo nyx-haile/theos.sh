@@ -58,11 +58,12 @@ function normalAt(int: Internals, u: number, v: number): Vec3 {
 
 function metricAt(int: Internals, u: number, v: number): Metric2 {
   const eps = 1e-4;
-  const p = embed(int, u, v);
-  const pU = embed(int, u + eps, v);
-  const pV = embed(int, u, v + eps);
-  const dU: Vec3 = [(pU[0]-p[0])/eps, (pU[1]-p[1])/eps, (pU[2]-p[2])/eps];
-  const dV: Vec3 = [(pV[0]-p[0])/eps, (pV[1]-p[1])/eps, (pV[2]-p[2])/eps];
+  const pu1 = embed(int, u + eps, v);
+  const pu0 = embed(int, u - eps, v);
+  const pv1 = embed(int, u, v + eps);
+  const pv0 = embed(int, u, v - eps);
+  const dU: Vec3 = [(pu1[0]-pu0[0])/(2*eps), (pu1[1]-pu0[1])/(2*eps), (pu1[2]-pu0[2])/(2*eps)];
+  const dV: Vec3 = [(pv1[0]-pv0[0])/(2*eps), (pv1[1]-pv0[1])/(2*eps), (pv1[2]-pv0[2])/(2*eps)];
   const guu = dU[0]*dU[0] + dU[1]*dU[1] + dU[2]*dU[2];
   const guv = dU[0]*dV[0] + dU[1]*dV[1] + dU[2]*dV[2];
   const gvv = dV[0]*dV[0] + dV[1]*dV[1] + dV[2]*dV[2];
