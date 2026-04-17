@@ -241,7 +241,7 @@ Every numerical knob lives in a single module `src/config/tunables.ts`, exposed 
 | Curvature envelope | `safeAmplitudeRange`, `safeKmaxRange`, `maxNormalDeltaDeg` | [0.1, 0.5]·r, [6, 12], 10° |
 | Materializer | `heightGridN` | 256 |
 | Renderer | `cellsWide`, `cellsHigh`, `fovDeg`, `marchStepBase`, `marchMaxSteps`, `eyeOffsetAlongNormal`, `distanceFalloff` | 120, 40, 70°, 0.02, 200, 0.05, `1/(1+0.1·d)` |
-| Glyphs | `luminanceRamp`, `artifactGlyphs`, `artifactNearGlyph`, `artifactFarGlyph` | `` "`.,:;oO8#@" ``, `["*","✦","◆"]`, `*`, `·` |
+| Glyphs | `luminanceRamp`, `artifactGlyphsNear`, `artifactGlyphFar` | `` "`.,:;oO8#@" ``, `"*✦◆"`, `·` |
 | Artifacts | `countRange`, `radiusRange`, `offsetRange`, `spikesRange` | [3, 7], [0.05, 0.15]·r, [0.1, 0.3]·r, [3, 7] |
 | Walking (C1) | `walkSpeed`, `strafeSpeed`, `yawRate`, `pitchRate`, `pitchClampDeg` | 0.3/s, 0.25/s, 90°/s, 60°/s, 89° |
 
