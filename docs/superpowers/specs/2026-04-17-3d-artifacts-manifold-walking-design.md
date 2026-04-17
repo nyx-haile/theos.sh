@@ -228,10 +228,43 @@ interface Artifact {
 
 **No mouse.** K3 (mouse look) was considered and rejected: continuous mouse motion aliased against discrete cell output produces stuttering rotation. Keyboard discretization matches cell discretization. Revisit if/when non-ASCII tiers land where continuous output resolution matches mouse precision.
 
+## Tunables
+
+Every numerical knob lives in a single module `src/config/tunables.ts`, exposed as a reactive Solid store so that dev-time tweaks propagate through the pipeline without a reload. One import site, one place to look, one place to edit. In dev builds the store is also mounted on `window.theos.tunables` so values can be poked from the browser console with live effect.
+
+**Categories** (field names indicative; finalized at implementation):
+
+| Group | Fields | Nominal |
+|-------|--------|---------|
+| Manifold geometry | `majorRadius` R, `minorRadius` r | 1.0, 0.3 |
+| Height-field noise | `amplitude` A, `freqCap` K_max, `octaves`, `lacunarity`, `gain` | 0.2·r, 8, 3, 2.0, 0.5 |
+| Curvature envelope | `safeAmplitudeRange`, `safeKmaxRange`, `maxNormalDeltaDeg` | [0.1, 0.5]·r, [6, 12], 10° |
+| Materializer | `heightGridN` | 256 |
+| Renderer | `cellsWide`, `cellsHigh`, `fovDeg`, `marchStepBase`, `marchMaxSteps`, `eyeOffsetAlongNormal`, `distanceFalloff` | 120, 40, 70°, 0.02, 200, 0.05, `1/(1+0.1·d)` |
+| Glyphs | `luminanceRamp`, `artifactGlyphs`, `artifactNearGlyph`, `artifactFarGlyph` | `` "`.,:;oO8#@" ``, `["*","✦","◆"]`, `*`, `·` |
+| Artifacts | `countRange`, `radiusRange`, `offsetRange`, `spikesRange` | [3, 7], [0.05, 0.15]·r, [0.1, 0.3]·r, [3, 7] |
+| Walking (C1) | `walkSpeed`, `strafeSpeed`, `yawRate`, `pitchRate`, `pitchClampDeg` | 0.3/s, 0.25/s, 90°/s, 60°/s, 89° |
+
+**What is NOT tunable at runtime:**
+- The seed itself — changing seed regenerates the whole world, that is a restart-level change, not a tweak.
+- Invariants (e.g. "the grid is periodic", "Christoffel symbols are symmetric in their lower indices") — these are assertions, not knobs.
+
+**Change propagation:**
+- Noise tunables (amplitude, freqCap, octaves, lacunarity, gain) → re-run `makeManifold` → re-materialize height grid → next frame renders new terrain. Signal chain handles this.
+- Renderer tunables (cells, FOV, march params, glyph ramp) → next frame picks up the new values, no materialization required.
+- Walking tunables → next input poll.
+- Artifact tunables → re-run placement (deterministic from seed + tunables) → next frame renders new artifact set in new positions / sizes.
+- Manifold geometry (R, r) → re-run `makeManifold` and re-materialize. (Note: changing R or r changes the canonical `embed` and invalidates the height grid.)
+
+**Persistence (dev only).** Tunable overrides can be saved to `localStorage` under key `theos:tunables-overrides` and reloaded next boot, so aesthetics discovered via dev-console tweaking survive reloads. Disabled in production builds.
+
+**Invariant.** No tunable change at runtime should leave the world in an inconsistent state — after every mutation, `embed(u_p, v_p)` must still be on the current surface, the player's (u, v) must still be in `[0,1)²`, the height grid must still match the backend. The reactive dependency graph is what guarantees this; the test suite pins it (see Testing).
+
 ## File changes
 
 **Create:**
-- `src/manifold/backend.ts` — the `ManifoldBackend` interface and `makeManifold(seed)` factory. Pure functions for heightAt, embed, normalAt, metricAt, christoffelAt. Wraps atlas metadata.
+- `src/config/tunables.ts` — the centralized reactive Solid store of numerical knobs. Mounted on `window.theos.tunables` in dev builds. Optional localStorage persistence for dev overrides.
+- `src/manifold/backend.ts` — the `ManifoldBackend` interface and `makeManifold(seed, tunables)` factory. Pure functions for heightAt, embed, normalAt, metricAt, christoffelAt. Wraps atlas metadata.
 - `src/manifold/noise.ts` — 4D simplex noise implementation (or a small dependency) and the periodic `h(u, v)` generator. Calibrated safe envelope for (A, K_max).
 - `src/manifold/atlas.ts` — `AtlasMetadata`, `wrapPosition` for the A1 single-chart torus (identity on wrap). Set up so A3 can extend it.
 - `src/manifold/materialize.ts` — `materializeHeightGrid(backend, N)`. (`materializeMesh`, `materializeSDF` stubs for future tiers.)
@@ -267,6 +300,7 @@ interface Artifact {
 9. **C1 walking wrap.** Walk player off u=1 → appears at u=0, heading unchanged.
 10. **Artifact placement determinism.** Same seed → same (uv, offset, radius, spikes) for all artifacts.
 11. **Visual smoke (Puppeteer).** Boot with seed 0, walk forward 5s, assert no uncaught errors, assert terminal output changed (not static), assert at least one artifact glyph appears in the output at some point during the walk. Replace or extend existing `tests/visual/game-flow.test.ts`.
+12. **Tunable reactivity.** Mutate `tunables.amplitude` at runtime → assert the height grid re-materializes, the player's (u, v) is still in [0,1)², and no error is thrown. Mutate `tunables.walkSpeed` → assert subsequent per-frame displacement scales accordingly. Mutate `tunables.fovDeg` → assert the next frame is different from the last. Mutate `tunables.heightGridN` → assert re-materialization without crash.
 
 ## Non-goals
 
