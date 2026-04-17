@@ -13,6 +13,7 @@ import { textCellsEffect }         from './base/text-cells';
 import { jitterEffect }            from './modulators/jitter';
 
 export { makeHintOverlayEffect } from './base/hint-overlay';
+export { makeHintTooltipEffect } from './base/hint-tooltip';
 
 export const ALL_EFFECTS = [
   charsetVariantEffect, fontVariationEffect,

@@ -3,7 +3,7 @@ import { runOriginPhase } from './origin/anchor';
 import { generateColorScheme } from './color/scheme';
 import { Applicator } from './applicator';
 import { ASCIIRenderer } from './renderers/ascii';
-import { registerAll, makeHintOverlayEffect } from './effects/registry';
+import { registerAll, makeHintOverlayEffect, makeHintTooltipEffect } from './effects/registry';
 import { ContentRegistry } from './content/registry';
 import { createManifoldFn } from './manifold/manifold-fn';
 import { ViewportManager } from './viewport/viewport-manager';
@@ -50,17 +50,17 @@ export default function App() {
       const vm = new ViewportManager(manifoldFn, contentReg, 2);
       const store = createVisibilityStore();
 
-      const hintEffect = makeHintOverlayEffect(
-        () => store,
-        () => ({
-          centerCol: Math.round(vm.position[0]) + Math.floor(cols / 2),
-          centerRow: Math.round(vm.position[1]) + Math.floor(rows / 2),
-        }),
-      );
+      const viewportCenterFn = () => ({
+        centerCol: Math.round(vm.position[0]) + Math.floor(cols / 2),
+        centerRow: Math.round(vm.position[1]) + Math.floor(rows / 2),
+      });
+      const hintEffect = makeHintOverlayEffect(() => store, viewportCenterFn);
+      const tooltipEffect = makeHintTooltipEffect(() => store, viewportCenterFn);
 
-      // register effects (including hint overlay)
+      // register effects (including hint overlay + tooltip)
       registerAll(app);
       hintEffect.register(app);
+      tooltipEffect.register(app);
       app.boot();
 
       // fixed bindings: WASD/arrows
@@ -119,13 +119,7 @@ export default function App() {
     <>
       <canvas ref={canvasRef} style={{ display:'block', width:'100vw', height:'100vh', margin:0, padding:0 }} />
       <Show when={hintVisible() && !openHandle()}>
-        <div data-testid="proximity-hint" style={{
-          position: 'fixed', bottom: '2rem', left: '50%', transform: 'translateX(-50%)',
-          'z-index': '5', color: '#e0e0e0',
-          'font-family': 'ui-monospace, monospace',
-          'font-size': '0.9rem',
-          opacity: '0.85',
-        }}>press enter to open</div>
+        <div data-testid="proximity-hint" style={{ display: 'none' }} />
       </Show>
       <Show when={openHandle()}>
         <DetailView handle={openHandle()!} client={client} onClose={() => setOpenHandle(null)} />

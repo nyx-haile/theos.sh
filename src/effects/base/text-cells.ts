@@ -18,7 +18,7 @@ export const textCellsEffect: Effect = {
       if (!isRevealed(idx)) return;
 
       // Fade near buffer edges so shadow doesn't hard-clip
-      const edgeDist = Math.min(worldRow, worldCol, ctx.rows - 1 - worldRow, ctx.cols - 1 - worldCol);
+      const edgeDist = Math.min(cell.row, cell.col, ctx.rows - 1 - cell.row, ctx.cols - 1 - cell.col);
       const fade = edgeDist >= FADE_BAND ? 1 : (edgeDist + 1) / (FADE_BAND + 1);
 
       const density = ctx.textDensity[idx]!;
