@@ -19,9 +19,10 @@ export default defineConfig({
     minify: 'esbuild',
     rollupOptions: {
       input: {
-        main: resolve(__dirname, 'index.html'),
-        a11y: resolve(__dirname, 'a11y/index.html'),
-        hc:   resolve(__dirname, 'hc/index.html'),
+        main:    resolve(__dirname, 'index.html'),
+        a11y:    resolve(__dirname, 'a11y/index.html'),
+        hc:      resolve(__dirname, 'hc/index.html'),
+        surface: resolve(__dirname, 'surface/index.html'),
       },
     },
   },
