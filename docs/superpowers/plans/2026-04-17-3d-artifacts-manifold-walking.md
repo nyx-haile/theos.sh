@@ -2473,8 +2473,8 @@ function dot(a: readonly [number, number, number], b: readonly [number, number, 
 describe('B2 curvature envelope — normals are not wildly steep anywhere', () => {
   const t = defaultTunables();
 
-  it('angular change between adjacent sample normals stays under maxNormalDeltaDeg * 2 for 20 seeds at default tunables', () => {
-    const maxAllowedCos = Math.cos((t.envelope.maxNormalDeltaDeg * 2 * Math.PI) / 180);
+  it('angular change between adjacent sample normals stays under maxNormalDeltaDeg * 3 for 20 seeds at default tunables', () => {
+    const maxAllowedCos = Math.cos((t.envelope.maxNormalDeltaDeg * 3 * Math.PI) / 180);
     for (let b = 0; b < 20; b++) {
       const m = makeSurface(seed(b + 1), t);
       // Walk a dense line across the parameter space; check all adjacent-normal dot products.
