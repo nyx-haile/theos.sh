@@ -6,7 +6,7 @@ describe('A1 single-chart torus atlas', () => {
 
   it('has exactly one chart', () => {
     expect(atlas.charts.length).toBe(1);
-    expect(atlas.charts[0].id).toBe(0);
+    expect(atlas.charts[0]!.id).toBe(0);
   });
 
   it('is identity for in-range (u, v)', () => {

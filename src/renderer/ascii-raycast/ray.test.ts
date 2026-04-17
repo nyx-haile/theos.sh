@@ -21,7 +21,7 @@ describe('makeRays', () => {
 
   it('all rays share the same origin (the eye)', () => {
     const rays = makeRays(m, pose, vp, t.renderer.eyeOffsetAlongNormal);
-    const o0 = rays[0].origin;
+    const o0 = rays[0]!.origin;
     for (const r of rays) {
       expect(r.origin[0]).toBeCloseTo(o0[0], 10);
       expect(r.origin[1]).toBeCloseTo(o0[1], 10);
@@ -42,7 +42,7 @@ describe('makeRays', () => {
     const rays = makeRays(m, pose, vp, t.renderer.eyeOffsetAlongNormal);
     const cx = Math.floor(vp.cellsWide / 2);
     const cy = Math.floor(vp.cellsHigh / 2);
-    const center = rays[cy * vp.cellsWide + cx];
+    const center = rays[cy * vp.cellsWide + cx]!;
     const n = m.normalAt(pose.u, pose.v);
     const dot = center.direction[0]*n[0] + center.direction[1]*n[1] + center.direction[2]*n[2];
     expect(Math.abs(dot)).toBeLessThan(0.3);
@@ -52,7 +52,7 @@ describe('makeRays', () => {
     const rays = makeRays(m, { ...pose, pitch: Math.PI / 4 }, vp, t.renderer.eyeOffsetAlongNormal);
     const cx = Math.floor(vp.cellsWide / 2);
     const cy = Math.floor(vp.cellsHigh / 2);
-    const center = rays[cy * vp.cellsWide + cx];
+    const center = rays[cy * vp.cellsWide + cx]!;
     const n = m.normalAt(pose.u, pose.v);
     const dot = center.direction[0]*n[0] + center.direction[1]*n[1] + center.direction[2]*n[2];
     expect(dot).toBeGreaterThan(0.5);

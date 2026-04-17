@@ -66,8 +66,8 @@ describe('surface backend', () => {
       const pUm = m.embed(u - eps, v);
       const pVp = m.embed(u, v + eps);
       const pVm = m.embed(u, v - eps);
-      const tU = [(pUp[0]-pUm[0])/(2*eps), (pUp[1]-pUm[1])/(2*eps), (pUp[2]-pUm[2])/(2*eps)];
-      const tV = [(pVp[0]-pVm[0])/(2*eps), (pVp[1]-pVm[1])/(2*eps), (pVp[2]-pVm[2])/(2*eps)];
+      const tU: [number, number, number] = [(pUp[0]-pUm[0])/(2*eps), (pUp[1]-pUm[1])/(2*eps), (pUp[2]-pUm[2])/(2*eps)];
+      const tV: [number, number, number] = [(pVp[0]-pVm[0])/(2*eps), (pVp[1]-pVm[1])/(2*eps), (pVp[2]-pVm[2])/(2*eps)];
       const dotU = n[0]*tU[0] + n[1]*tU[1] + n[2]*tU[2];
       const dotV = n[0]*tV[0] + n[1]*tV[1] + n[2]*tV[2];
       expect(Math.abs(dotU)).toBeLessThan(0.05);

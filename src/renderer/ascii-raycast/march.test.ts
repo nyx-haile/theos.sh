@@ -19,14 +19,14 @@ describe('marchTerrain', () => {
   it('a ray pointing straight up from the eye misses the terrain', () => {
     const pose = makePose(0.3, 0.4, 0, Math.PI / 2 - 0.01);
     const rays = makeRays(m, pose, { cellsWide: 1, cellsHigh: 1, fovDeg: 10 }, t.renderer.eyeOffsetAlongNormal);
-    const hit = marchTerrain(rays[0], m, grid, N, t);
+    const hit = marchTerrain(rays[0]!, m, grid, N, t);
     expect(hit).toBeNull();
   });
 
   it('a ray pointing into the surface hits within a few steps', () => {
     const pose = makePose(0.3, 0.4, 0, -Math.PI / 2 + 0.01);
     const rays = makeRays(m, pose, { cellsWide: 1, cellsHigh: 1, fovDeg: 10 }, t.renderer.eyeOffsetAlongNormal);
-    const hit = marchTerrain(rays[0], m, grid, N, t);
+    const hit = marchTerrain(rays[0]!, m, grid, N, t);
     expect(hit).not.toBeNull();
     if (hit) {
       expect(hit.distance).toBeGreaterThan(0);
@@ -37,8 +37,8 @@ describe('marchTerrain', () => {
   it('hits at different points for different yaws', () => {
     const poseA = makePose(0.3, 0.4, 0, 0);
     const poseB = makePose(0.3, 0.4, Math.PI, 0);
-    const rA = makeRays(m, poseA, { cellsWide: 1, cellsHigh: 1, fovDeg: 10 }, t.renderer.eyeOffsetAlongNormal)[0];
-    const rB = makeRays(m, poseB, { cellsWide: 1, cellsHigh: 1, fovDeg: 10 }, t.renderer.eyeOffsetAlongNormal)[0];
+    const rA = makeRays(m, poseA, { cellsWide: 1, cellsHigh: 1, fovDeg: 10 }, t.renderer.eyeOffsetAlongNormal)[0]!;
+    const rB = makeRays(m, poseB, { cellsWide: 1, cellsHigh: 1, fovDeg: 10 }, t.renderer.eyeOffsetAlongNormal)[0]!;
     const hA = marchTerrain(rA, m, grid, N, t);
     const hB = marchTerrain(rB, m, grid, N, t);
     if (hA && hB) {

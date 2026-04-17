@@ -24,11 +24,12 @@ describe('P1 uniform artifact placement', () => {
     const b = placeArtifacts(seed(7), t);
     expect(a.length).toBe(b.length);
     for (let i = 0; i < a.length; i++) {
-      expect(a[i].u).toBeCloseTo(b[i].u, 12);
-      expect(a[i].v).toBeCloseTo(b[i].v, 12);
-      expect(a[i].radius).toBeCloseTo(b[i].radius, 12);
-      expect(a[i].offset).toBeCloseTo(b[i].offset, 12);
-      expect(a[i].spikes).toBe(b[i].spikes);
+      const ai = a[i]!, bi = b[i]!;
+      expect(ai.u).toBeCloseTo(bi.u, 12);
+      expect(ai.v).toBeCloseTo(bi.v, 12);
+      expect(ai.radius).toBeCloseTo(bi.radius, 12);
+      expect(ai.offset).toBeCloseTo(bi.offset, 12);
+      expect(ai.spikes).toBe(bi.spikes);
     }
   });
 

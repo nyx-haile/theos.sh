@@ -33,9 +33,11 @@ export function intersectArtifact(ray: Ray, center: Vec3, radius: number): { dis
 export function intersectNearestArtifact(ray: Ray, artifacts: Artifact[], centers: Vec3[]): ArtifactHit | null {
   let best: ArtifactHit | null = null;
   for (let i = 0; i < artifacts.length; i++) {
-    const hit = intersectArtifact(ray, centers[i], artifacts[i].radius);
+    const artifact = artifacts[i]!;
+    const center = centers[i]!;
+    const hit = intersectArtifact(ray, center, artifact.radius);
     if (hit && (best === null || hit.distance < best.distance)) {
-      best = { artifactId: artifacts[i].id, point: hit.point, normal: hit.normal, distance: hit.distance };
+      best = { artifactId: artifact.id, point: hit.point, normal: hit.normal, distance: hit.distance };
     }
   }
   return best;

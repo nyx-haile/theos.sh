@@ -30,7 +30,7 @@ export function renderFrame(
   const glyphs: string[] = new Array(vp.cellsWide * vp.cellsHigh);
 
   for (let k = 0; k < rays.length; k++) {
-    const ray = rays[k];
+    const ray = rays[k]!;  // bounded by rays.length
     const terrainHit = marchTerrain(ray, m, grid, N, t);
     const artifactHit = intersectNearestArtifact(ray, artifacts, centers);
 

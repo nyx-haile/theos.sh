@@ -28,10 +28,10 @@ export function sampleGridPeriodic(g: Float32Array, N: number, u: number, v: num
   const j1 = (j0 + 1) % N;
   const fu = uu - Math.floor(uu);
   const fv = vv - Math.floor(vv);
-  const h00 = g[i0 * N + j0];
-  const h01 = g[i0 * N + j1];
-  const h10 = g[i1 * N + j0];
-  const h11 = g[i1 * N + j1];
+  const h00 = g[i0 * N + j0]!;
+  const h01 = g[i0 * N + j1]!;
+  const h10 = g[i1 * N + j0]!;
+  const h11 = g[i1 * N + j1]!;
   const h0 = h00 * (1 - fv) + h01 * fv;
   const h1 = h10 * (1 - fv) + h11 * fv;
   return h0 * (1 - fu) + h1 * fu;
