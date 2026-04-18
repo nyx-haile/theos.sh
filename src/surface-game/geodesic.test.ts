@@ -72,8 +72,21 @@ describe('geodesicStep (curved torus)', () => {
     const out = geodesicStep(m, { u: 0.4, v: 0.4, uDot: u0, vDot: v0 }, ds, 8);
     const [gUU2, gUV2, gVV2] = m.metricAt(out.u, out.v);
     const n1 = metricNorm(gUU2, gUV2, gVV2, out.uDot, out.vDot);
-    // Unit-speed geodesic stays unit-speed under RK2 (within integration error).
-    expect(Math.abs(n1 - 1)).toBeLessThan(0.02);
+    // Unit-speed geodesic stays unit-speed under RK4 (within integration error).
+    expect(Math.abs(n1 - 1)).toBeLessThan(0.005);
+  });
+
+  it('RK4: unit-speed preservation holds at larger ds with fewer substeps', () => {
+    const [guu, guv, gvv] = m.metricAt(0.4, 0.4);
+    const raw_u = 1, raw_v = 0.5;
+    const n0 = metricNorm(guu, guv, gvv, raw_u, raw_v);
+    const u0 = raw_u / n0, v0 = raw_v / n0;
+
+    const ds = 0.3;
+    const out = geodesicStep(m, { u: 0.4, v: 0.4, uDot: u0, vDot: v0 }, ds, 4);
+    const [gUU2, gUV2, gVV2] = m.metricAt(out.u, out.v);
+    const n1 = metricNorm(gUU2, gUV2, gVV2, out.uDot, out.vDot);
+    expect(Math.abs(n1 - 1)).toBeLessThan(0.01);
   });
 
   it('moves the position by approximately arc-length ds in world space', () => {
