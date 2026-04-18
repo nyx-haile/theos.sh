@@ -9,13 +9,10 @@ export interface TerrainHit {
 }
 
 /** March the ray through ℝ³ until it hits the embedded surface, or give up.
- * Uses analytic embed/normal (not grid sampling) — the grid is a cache consumed by the
- * renderer's coarse rejection pass (elsewhere); here we refine with the exact surface. */
+ * Uses analytic embed/normal. Coarse height-grid rejection (R2) lands in a follow-up. */
 export function marchTerrain(
   ray: Ray,
   m: ManifoldBackend,
-  _grid: Float32Array,
-  _N: number,
   t: TunablesShape,
 ): TerrainHit | null {
   const step = t.renderer.marchStepBase;

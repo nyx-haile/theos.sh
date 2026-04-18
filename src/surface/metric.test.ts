@@ -50,4 +50,27 @@ describe('metric and christoffel consistency', () => {
       }
     }
   });
+
+  it('christoffel matches analytic flat-torus symbols when amplitude is zero', () => {
+    const tFlat = { ...defaultTunables(), noise: { ...defaultTunables().noise, amplitude: 0 } };
+    const mFlat = makeSurface(seed(17), tFlat);
+    const R = tFlat.manifold.majorRadius;
+    const r = tFlat.manifold.minorRadius;
+    const TAU = Math.PI * 2;
+    // Flat torus: only Γ^u_uv and Γ^v_uu are non-zero (both depend on v only).
+    //   Γ^u_uv = -TAU·r·sin(TAU·v) / (R + r·cos(TAU·v))
+    //   Γ^v_uu =  TAU·(R + r·cos(TAU·v))·sin(TAU·v) / r
+    for (const [u, v] of [[0.0, 0.125], [0.37, 0.8], [0.5, 0.333]] as const) {
+      const [uu_u, uv_u, vv_u, uu_v, uv_v, vv_v] = mFlat.christoffelAt(u, v);
+      const ring = R + r * Math.cos(TAU * v);
+      const expUV_u = -TAU * r * Math.sin(TAU * v) / ring;
+      const expUU_v = TAU * ring * Math.sin(TAU * v) / r;
+      expect(uu_u).toBeCloseTo(0, 2);
+      expect(uv_u).toBeCloseTo(expUV_u, 1);
+      expect(vv_u).toBeCloseTo(0, 2);
+      expect(uu_v).toBeCloseTo(expUU_v, 1);
+      expect(uv_v).toBeCloseTo(0, 2);
+      expect(vv_v).toBeCloseTo(0, 2);
+    }
+  });
 });

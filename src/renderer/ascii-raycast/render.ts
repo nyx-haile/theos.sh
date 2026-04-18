@@ -10,8 +10,6 @@ function dot(a: Vec3, b: Vec3): number { return a[0]*b[0] + a[1]*b[1] + a[2]*b[2
 
 export function renderFrame(
   m: ManifoldBackend,
-  grid: Float32Array,
-  N: number,
   artifacts: Artifact[],
   pose: Pose,
   t: TunablesShape,
@@ -31,7 +29,7 @@ export function renderFrame(
 
   for (let k = 0; k < rays.length; k++) {
     const ray = rays[k]!;  // bounded by rays.length
-    const terrainHit = marchTerrain(ray, m, grid, N, t);
+    const terrainHit = marchTerrain(ray, m, t);
     const artifactHit = intersectNearestArtifact(ray, artifacts, centers);
 
     // Choose nearer hit (both may be null, one may be null).

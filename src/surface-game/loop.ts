@@ -4,7 +4,6 @@ import type { Frame, Player, Artifact } from './types';
 import { defaultTunables } from '../config/tunables';
 import { createStore } from 'solid-js/store';
 import { makeSurface } from '../surface/backend';
-import { materializeHeightGrid } from '../surface/materialize';
 import { placeArtifacts } from './artifacts';
 import { createPlayer, stepPlayer, type KeyState } from './player';
 import { renderFrame } from '../renderer/ascii-raycast/render';
@@ -21,15 +20,11 @@ export interface Game {
 export function createGame(seed: Uint8Array, initial: TunablesShape = defaultTunables()): Game {
   const [tunables, setTunables] = createStore<TunablesShape>(initial);
   let backend: ManifoldBackend = makeSurface(seed, tunables);
-  let grid: Float32Array = materializeHeightGrid(backend, tunables.materializer.heightGridN);
-  let N: number = tunables.materializer.heightGridN;
   let artifacts: Artifact[] = placeArtifacts(seed, tunables);
   const player = createPlayer();
 
   function rebuild(): void {
     backend = makeSurface(seed, tunables);
-    N = tunables.materializer.heightGridN;
-    grid = materializeHeightGrid(backend, N);
     artifacts = placeArtifacts(seed, tunables);
   }
 
@@ -44,7 +39,7 @@ export function createGame(seed: Uint8Array, initial: TunablesShape = defaultTun
       stepPlayer(player, backend, tunables, keys, dt);
     },
     frame() {
-      return renderFrame(backend, grid, N, artifacts, player.pose, tunables);
+      return renderFrame(backend, artifacts, player.pose, tunables);
     },
   };
 }

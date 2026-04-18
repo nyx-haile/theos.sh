@@ -8,7 +8,7 @@ function seed(b: number): Uint8Array {
 
 describe('game loop', () => {
   it('boots without error and produces a frame', () => {
-    const [t] = (() => { const d = defaultTunables(); return [d] as const; })();
+    const t = defaultTunables();
     const game = createGame(seed(4), t);
     const frame = game.frame();
     expect(frame.glyphs.length).toBe(t.renderer.cellsWide * t.renderer.cellsHigh);
