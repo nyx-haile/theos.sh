@@ -28,6 +28,9 @@ export interface TunablesShape {
     marchMaxSteps: number;
     eyeOffsetAlongNormal: number;
     distanceFalloffK: number; // brightness = 1 / (1 + K·distance)
+    contourFreq: number;      // cycles per world-z unit; 0 disables contour overlay
+    contourStrength: number;  // [0,1]; 0 = lambert only, 1 = pure banding
+    silhouetteBoost: number;  // [0,1]; grazing-angle rim brightening
   };
   glyphs: {
     luminanceRamp: string;
@@ -67,6 +70,9 @@ export function defaultTunables(): TunablesShape {
       marchMaxSteps: 200,
       eyeOffsetAlongNormal: 0.05,
       distanceFalloffK: 0.1,
+      contourFreq: 8.0,
+      contourStrength: 0.55,
+      silhouetteBoost: 0.4,
     },
     glyphs: {
       luminanceRamp: ' .,:;oO8#@',

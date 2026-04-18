@@ -43,9 +43,16 @@ export function renderFrame(
     }
 
     if (chosen === 'terrain' && terrainHit) {
-      const brightness = Math.max(0, -dot(terrainHit.normal, ray.direction));
+      const lambert = Math.max(0, -dot(terrainHit.normal, ray.direction));
+      const grazing = 1 - Math.abs(dot(terrainHit.normal, ray.direction));
+      const shaded = lambert * (1 - t.renderer.silhouetteBoost) + grazing * t.renderer.silhouetteBoost;
       const falloff = 1 / (1 + t.renderer.distanceFalloffK * terrainHit.distance);
-      glyphs[k] = luminanceGlyph(brightness * falloff, t.glyphs.luminanceRamp);
+      // Iso-height contour band in world-z; peaks of |sin| darken glyph to reveal curvature.
+      const band = t.renderer.contourFreq > 0
+        ? Math.abs(Math.sin(terrainHit.point[2] * t.renderer.contourFreq * Math.PI))
+        : 0;
+      const contour = 1 - t.renderer.contourStrength * band;
+      glyphs[k] = luminanceGlyph(shaded * falloff * contour, t.glyphs.luminanceRamp);
     } else if (chosen === 'artifact' && artifactHit) {
       glyphs[k] = artifactGlyph(artifactHit.distance, t.glyphs.artifactGlyphsNear, t.glyphs.artifactGlyphFar, sceneScale);
     } else {

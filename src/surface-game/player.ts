@@ -14,7 +14,7 @@ export function applyKeys(partial: Partial<KeyState>): KeyState {
   return { ...EMPTY_KEYS, ...partial };
 }
 
-export function createPlayer(u = 0.5, v = 0.5, yaw = 0, pitch = 0): Player {
+export function createPlayer(u = 0.5, v = 0.5, yaw = 0, pitch = -0.3): Player {
   return { pose: makePose(u, v, yaw, pitch) };
 }
 

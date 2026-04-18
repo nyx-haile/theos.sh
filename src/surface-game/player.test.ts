@@ -16,7 +16,7 @@ describe('player K2 + C1', () => {
     expect(p.pose.u).toBeCloseTo(0.25);
     expect(p.pose.v).toBeCloseTo(0.75);
     expect(p.pose.yaw).toBe(0);
-    expect(p.pose.pitch).toBe(0);
+    expect(p.pose.pitch).toBe(-0.3);
     expect(p.pose.chart).toBe(0);
   });
 
