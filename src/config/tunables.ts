@@ -42,6 +42,8 @@ export interface TunablesShape {
     radiusRange: [number, number]; // in units of minorRadius
     offsetRange: [number, number]; // in units of minorRadius
     spikesRange: [number, number]; // integer-valued
+    featureGridN: number;          // resolution of the h-field grid used to find extrema
+    minSeparation: number;         // minimum u/v Chebyshev distance between artifacts (periodic)
   };
   walk: {
     walkSpeed: number;      // parameter-space units per second
@@ -84,6 +86,8 @@ export function defaultTunables(): TunablesShape {
       radiusRange: [0.05, 0.15],
       offsetRange: [0.1, 0.3],
       spikesRange: [3, 7],
+      featureGridN: 48,
+      minSeparation: 0.08,
     },
     walk: {
       walkSpeed: 0.3,
