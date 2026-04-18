@@ -31,9 +31,11 @@ describe('player K2 + C1', () => {
   it('S moves the opposite direction of W', () => {
     const pW = createPlayer(0.5, 0.5);
     const pS = createPlayer(0.5, 0.5);
-    stepPlayer(pW, m, t, applyKeys({ w: true }), 1.0);
-    stepPlayer(pS, m, t, applyKeys({ s: true }), 1.0);
-    // Displacements should be roughly opposite (sum near zero).
+    // Small step so the two geodesics from the same seed point are still
+    // close to mirror images — C3 propagation diverges for large dt when
+    // the surface is curved.
+    stepPlayer(pW, m, t, applyKeys({ w: true }), 0.05);
+    stepPlayer(pS, m, t, applyKeys({ s: true }), 0.05);
     const sumU = (pW.pose.u - 0.5) + (pS.pose.u - 0.5);
     const sumV = (pW.pose.v - 0.5) + (pS.pose.v - 0.5);
     expect(Math.abs(sumU)).toBeLessThan(1e-3);
@@ -71,5 +73,20 @@ describe('player K2 + C1', () => {
     stepPlayer(p, m, t, applyKeys({ e: true }), 100.0);
     expect(p.pose.yaw).toBeGreaterThanOrEqual(-Math.PI);
     expect(p.pose.yaw).toBeLessThanOrEqual(Math.PI);
+  });
+
+  it('C3: a W step traverses ~walkSpeed·dt of world-space arc length', () => {
+    // Chord ≤ arc-length, and for small dt they agree; verify the chord is
+    // a substantial fraction of the target arc so the geodesic integrator
+    // isn't silently stalling or overshooting.
+    const p = createPlayer(0.5, 0.5);
+    const p0 = m.embed(p.pose.u, p.pose.v);
+    const dt = 0.1;
+    stepPlayer(p, m, t, applyKeys({ w: true }), dt);
+    const p1 = m.embed(p.pose.u, p.pose.v);
+    const chord = Math.hypot(p1[0]-p0[0], p1[1]-p0[1], p1[2]-p0[2]);
+    const target = t.walk.walkSpeed * dt;
+    expect(chord).toBeGreaterThan(0.8 * target);
+    expect(chord).toBeLessThanOrEqual(target + 1e-6);
   });
 });

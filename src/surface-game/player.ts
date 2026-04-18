@@ -2,6 +2,7 @@ import type { ManifoldBackend, Vec3 } from '../surface/types';
 import type { Player, Pose } from './types';
 import type { TunablesShape } from '../config/tunables';
 import { makePose } from './types';
+import { geodesicStep, metricNorm } from './geodesic';
 
 export interface KeyState {
   w: boolean; a: boolean; s: boolean; d: boolean;
@@ -26,11 +27,10 @@ function wrapYaw(y: number): number {
 
 function clamp(x: number, lo: number, hi: number): number { return x < lo ? lo : x > hi ? hi : x; }
 
-/** Project a world-space step back onto (u, v) via the surface tangent basis.
- * C1 naive walking: we take the step as a linear combination of the tangent vectors
- * at (u, v) with coefficients we pick so that the player moves ε·direction in the
- * tangent plane. The metric is not inverted here — this is the "parameter-speed"
- * approximation that C3 (bead theos.sh-3fk) replaces with geodesic integration. */
+/** Project a world-space tangent vector back onto parameter-space (du, dv)
+ *  by solving the 2x2 Gram system with the coordinate tangent vectors. Used
+ *  to seed a geodesic with the view-picked world direction; the geodesic
+ *  integrator then handles propagation under the induced metric. */
 function tangentStep(m: ManifoldBackend, pose: Pose, world: Vec3): { du: number; dv: number } {
   const eps = 1e-4;
   const p = m.embed(pose.u, pose.v);
@@ -85,15 +85,29 @@ export function stepPlayer(player: Player, m: ManifoldBackend, t: TunablesShape,
   const fStep = (keys.w ? 1 : 0) + (keys.s ? -1 : 0);
   const rStep = (keys.d ? 1 : 0) + (keys.a ? -1 : 0);
   if (fStep !== 0 || rStep !== 0) {
-    const world: Vec3 = [
-      fwd[0]*t.walk.walkSpeed*dt*fStep + right[0]*t.walk.strafeSpeed*dt*rStep,
-      fwd[1]*t.walk.walkSpeed*dt*fStep + right[1]*t.walk.strafeSpeed*dt*rStep,
-      fwd[2]*t.walk.walkSpeed*dt*fStep + right[2]*t.walk.strafeSpeed*dt*rStep,
+    // Compose the desired world-space velocity from forward/strafe inputs.
+    const vF = t.walk.walkSpeed * fStep;
+    const vR = t.walk.strafeSpeed * rStep;
+    const velWorld: Vec3 = [
+      fwd[0] * vF + right[0] * vR,
+      fwd[1] * vF + right[1] * vR,
+      fwd[2] * vF + right[2] * vR,
     ];
-    const { du, dv } = tangentStep(m, pose, world);
-    const wrapped = m.atlas.wrapPosition(pose.chart, pose.u + du, pose.v + dv);
-    pose.chart = wrapped.chart;
-    pose.u = wrapped.u;
-    pose.v = wrapped.v;
+    const speedWorld = Math.sqrt(velWorld[0]**2 + velWorld[1]**2 + velWorld[2]**2);
+    if (speedWorld > 1e-12) {
+      // Unit direction in world space, mapped back to parameter space, then
+      // metric-normalized so the geodesic integrator gets a unit-speed seed.
+      const dir: Vec3 = [velWorld[0]/speedWorld, velWorld[1]/speedWorld, velWorld[2]/speedWorld];
+      const { du, dv } = tangentStep(m, pose, dir);
+      const [guu, guv, gvv] = m.metricAt(pose.u, pose.v);
+      const norm = metricNorm(guu, guv, gvv, du, dv) || 1e-18;
+      const uDot = du / norm, vDot = dv / norm;
+      const ds = speedWorld * dt;
+      const next = geodesicStep(m, { u: pose.u, v: pose.v, uDot, vDot }, ds, t.walk.geodesicSubsteps);
+      const wrapped = m.atlas.wrapPosition(pose.chart, next.u, next.v);
+      pose.chart = wrapped.chart;
+      pose.u = wrapped.u;
+      pose.v = wrapped.v;
+    }
   }
 }

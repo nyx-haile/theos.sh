@@ -51,6 +51,7 @@ export interface TunablesShape {
     yawRate: number;        // radians per second
     pitchRate: number;
     pitchClampDeg: number;
+    geodesicSubsteps: number; // RK2 substeps per frame for C3 geodesic integration
   };
 }
 
@@ -95,6 +96,7 @@ export function defaultTunables(): TunablesShape {
       yawRate: Math.PI / 2,
       pitchRate: Math.PI / 3,
       pitchClampDeg: 89,
+      geodesicSubsteps: 4,
     },
   };
 }
