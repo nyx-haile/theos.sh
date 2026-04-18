@@ -122,6 +122,25 @@ describe('P3 feature-biased artifact placement', () => {
     for (let i = 0; i < a.length; i++) {
       expect(a[i]!.u).toBeCloseTo(b[i]!.u, 12);
       expect(a[i]!.v).toBeCloseTo(b[i]!.v, 12);
+      expect(a[i]!.radius).toBeCloseTo(b[i]!.radius, 12);
+      expect(a[i]!.offset).toBeCloseTo(b[i]!.offset, 12);
+      expect(a[i]!.spikes).toBe(b[i]!.spikes);
+    }
+  });
+
+  it('radius/offset/spikes are identical across calls with and without feature backend (same seed)', () => {
+    // With backend: feature points supply u/v, but PRNG draws for u/v must still
+    // be consumed so that radius/offset/spikes draws stay at the same stream position.
+    // Without backend: u/v fall back to PRNG draws.
+    // In both cases radius/offset/spikes should be identical for the same seed.
+    const m = makeSurface(seed(31), t);
+    const withBackend = placeArtifacts(seed(31), t, m);
+    const noBackend = placeArtifacts(seed(31), t);
+    expect(withBackend.length).toBe(noBackend.length);
+    for (let i = 0; i < withBackend.length; i++) {
+      expect(withBackend[i]!.radius).toBeCloseTo(noBackend[i]!.radius, 12);
+      expect(withBackend[i]!.offset).toBeCloseTo(noBackend[i]!.offset, 12);
+      expect(withBackend[i]!.spikes).toBe(noBackend[i]!.spikes);
     }
   });
 });

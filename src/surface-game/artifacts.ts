@@ -41,9 +41,11 @@ export function placeArtifacts(
 
   const out: Artifact[] = [];
   for (let i = 0; i < n; i++) {
+    const uRand = prng.nextFloat();
+    const vRand = prng.nextFloat();
     const feat = featureUVs[i];
-    const u = feat ? feat.u : prng.nextFloat();
-    const v = feat ? feat.v : prng.nextFloat();
+    const u = feat ? feat.u : uRand;
+    const v = feat ? feat.v : vRand;
     const radius = lerp(minR, maxR, prng.nextFloat()) * rScale;
     const offset = lerp(minO, maxO, prng.nextFloat()) * rScale;
     const spikes = minS + Math.floor(prng.nextFloat() * (maxS - minS + 1));
