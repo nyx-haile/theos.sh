@@ -6,6 +6,7 @@ package-lock.json
 .DS_Store
 refs/
 phase6-smoke.png
+.superpowers/
 
 # Beads / Dolt files (added by bd init)
 .dolt/

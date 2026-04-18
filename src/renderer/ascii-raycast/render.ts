@@ -13,6 +13,7 @@ export function renderFrame(
   artifacts: Artifact[],
   pose: Pose,
   t: TunablesShape,
+  heightSampler?: (u: number, v: number) => number,
 ): Frame {
   const vp = { cellsWide: t.renderer.cellsWide, cellsHigh: t.renderer.cellsHigh, fovDeg: t.renderer.fovDeg };
   const rays = makeRays(m, pose, vp, t.renderer.eyeOffsetAlongNormal);
@@ -29,7 +30,7 @@ export function renderFrame(
 
   for (let k = 0; k < rays.length; k++) {
     const ray = rays[k]!;  // bounded by rays.length
-    const terrainHit = marchTerrain(ray, m, t);
+    const terrainHit = marchTerrain(ray, m, t, heightSampler);
     const artifactHit = intersectNearestArtifact(ray, artifacts, centers);
 
     // Choose nearer hit (both may be null, one may be null).
