@@ -31,6 +31,32 @@ describe('marchTerrain', () => {
     }
   });
 
+  it('coarse-rejects rays whose bounding-sphere miss is provable', () => {
+    // Eye 100 units above origin, direction straight up — bounding sphere far
+    // below, ray can never reach it. Must return null without touching march.
+    const R = t.manifold.majorRadius, r = t.manifold.minorRadius, A = r * t.noise.amplitude;
+    const B = R + r + A;
+    const ray = { origin: [0, 0, 10 * B] as [number, number, number], direction: [0, 0, 1] as [number, number, number] };
+    expect(marchTerrain(ray, m, t)).toBeNull();
+  });
+
+  it('coarse-rejects rays pointing away from the bounding sphere', () => {
+    const R = t.manifold.majorRadius, r = t.manifold.minorRadius, A = r * t.noise.amplitude;
+    const B = R + r + A;
+    // Ray originates well past the sphere and points further away.
+    const ray = { origin: [10 * B, 0, 0] as [number, number, number], direction: [1, 0, 0] as [number, number, number] };
+    expect(marchTerrain(ray, m, t)).toBeNull();
+  });
+
+  it('still hits when ray starts far outside but points at the torus', () => {
+    const R = t.manifold.majorRadius;
+    // Ray from far +X, aimed at origin — must traverse free space then hit.
+    const start: [number, number, number] = [R * 4, 0, 0];
+    const dir: [number, number, number] = [-1, 0, 0];
+    const hit = marchTerrain({ origin: start, direction: dir }, m, t);
+    expect(hit).not.toBeNull();
+  });
+
   it('hits at different points for different yaws', () => {
     const poseA = makePose(0.3, 0.4, 0, 0);
     const poseB = makePose(0.3, 0.4, Math.PI, 0);

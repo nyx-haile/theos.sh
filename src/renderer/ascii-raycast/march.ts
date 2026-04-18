@@ -36,7 +36,7 @@ export function marchTerrain(
   const fineStep = t.renderer.marchStepBase;
   const maxFineSteps = t.renderer.marchMaxSteps;
   const fineBand = A + fineStep;
-  const farLimit = 2 * (R + r + A) + 1;
+  const boundR = R + r + A;
 
   const TAU = Math.PI * 2;
 
@@ -53,6 +53,28 @@ export function marchTerrain(
   let posX = ray.origin[0], posY = ray.origin[1], posZ = ray.origin[2];
   const dX = ray.direction[0], dY = ray.direction[1], dZ = ray.direction[2];
   let traveled = 0;
+
+  // R2 coarse-rejection: ray vs bounding sphere of radius boundR at origin.
+  // Rays that miss the enclosing sphere cannot touch the bumpy torus — return
+  // null without marching. For rays that hit, advance to the sphere-entry t so
+  // the adaptive loop skips empty free space. Direction is pre-normalized by
+  // makeRays so |d|=1 and the quadratic reduces to t = -(p·d) ± √(…).
+  {
+    const pDotD = posX*dX + posY*dY + posZ*dZ;
+    const pDotP = posX*posX + posY*posY + posZ*posZ;
+    const disc = pDotD*pDotD - (pDotP - boundR*boundR);
+    if (disc < 0) return null;
+    const sq = Math.sqrt(disc);
+    const tExit = -pDotD + sq;
+    if (tExit < 0) return null;
+    const tEnter = -pDotD - sq;
+    if (tEnter > 0) {
+      posX += dX * tEnter; posY += dY * tEnter; posZ += dZ * tEnter;
+      traveled = tEnter;
+    }
+  }
+  // Budget = sphere entry + one diameter through the sphere + slack.
+  const farLimit = traveled + 2 * boundR + 1;
 
   // Combined sphere-trace + fine refine. Sphere-trace phase skips the
   // parametric signed-distance call entirely (base − A is a provably safe
