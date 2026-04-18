@@ -1,0 +1,32 @@
+[
+  {
+    "frameIndex": 0,
+    "elapsed": 0,
+    "hash": "c8a61ded"
+  },
+  {
+    "frameIndex": 1,
+    "elapsed": 500,
+    "hash": "7ba1fffc"
+  },
+  {
+    "frameIndex": 2,
+    "elapsed": 1500,
+    "hash": "17297354"
+  },
+  {
+    "frameIndex": 3,
+    "elapsed": 3000,
+    "hash": "d19d6e96"
+  },
+  {
+    "frameIndex": 4,
+    "elapsed": 6000,
+    "hash": "9cce711c"
+  },
+  {
+    "frameIndex": 5,
+    "elapsed": 10000,
+    "hash": "9cce711c"
+  }
+]

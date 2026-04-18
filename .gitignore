@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.playwright-mcp/
+package-lock.json
+*.log
+.DS_Store
+refs/
+phase6-smoke.png
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key

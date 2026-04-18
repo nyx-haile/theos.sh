@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>theos.sh — accessible</title>
+  <meta name="description" content="Accessible landing for theos.sh: plain-HTML description of the project and its exploratory game concept." />
+  <style>
+    :root { color-scheme: dark light; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      background: #0a0a0a; color: #f0f0f0;
+      font-size: 1.125rem; line-height: 1.6;
+      padding: 2rem 1.5rem;
+    }
+    header, main, footer { max-width: 70ch; margin: 0 auto; }
+    h1 { font-size: 2.25rem; margin: 0 0 2rem; letter-spacing: 0.02em; }
+    h2 { font-size: 1.375rem; margin: 2.5rem 0 0.75rem; }
+    p  { margin: 0 0 1rem; }
+    a  { color: #8ac; text-decoration: underline; }
+    a:visited { color: #a8c; }
+    a:focus-visible { outline: 2px solid #8ac; outline-offset: 2px; }
+    nav[aria-label="Artifacts"] { margin-top: 2.5rem; }
+    footer { margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid #333; font-size: 0.95rem; color: #bbb; }
+    footer p { margin: 0.5rem 0 0; }
+    @media (prefers-color-scheme: light) {
+      body { background: #fafafa; color: #111; }
+      footer { border-top-color: #ccc; color: #444; }
+      a { color: #14527a; } a:visited { color: #5a2a7a; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>theos.sh</h1>
+  </header>
+  <main>
+    <section aria-labelledby="about-heading">
+      <h2 id="about-heading">About</h2>
+      <p>theos.sh is a project by <a href="https://github.com/nyx-haile">Nyx Haile</a>, an MIT student studying computer science and mathematics with a focus on cryptography, number theory, algorithms, and economics.</p>
+      <p><a href="https://github.com/nyx-haile/nyx-haile/releases/tag/resume">Resume</a> · <a href="https://github.com/nyx-haile">GitHub</a></p>
+    </section>
+    <section aria-labelledby="game-heading">
+      <h2 id="game-heading">The Game</h2>
+      <p>The site is a map you walk. Artifacts — writing, code, conversation — sit on the surface of a manifold whose curvature is determined by a seed. Distance between artifacts isn't straight-line; it's geodesic, so the topology of the space shapes which things feel close to which other things.</p>
+      <p>On higher-powered devices the paths render smoothly. On less-powerful devices the path integrator degrades — but in spaces with high genus the integration error becomes a visual feature rather than a defect. Feature becomes bug becomes feature.</p>
+      <p>The home page is a preview of the rendering engine that draws the map.</p>
+    </section>
+    <nav aria-label="Artifacts">
+      <h2>Artifacts</h2>
+      <p>Coming soon.</p>
+    </nav>
+  </main>
+  <footer>
+    <p>
+      <a id="hc-link" href="/hc/">High-contrast preview</a>
+      &nbsp;·&nbsp;
+      <a id="full-visual-link" href="/">Full visual version</a>
+    </p>
+    <p>The full visual version animates continuously; it's not recommended if you set prefers-reduced-motion.</p>
+    <script>
+      (function () {
+        var key = 'theos:skipA11yRedirect';
+        function setFlag() { try { sessionStorage.setItem(key, '1'); } catch (e) {} }
+        var hc = document.getElementById('hc-link');
+        var fv = document.getElementById('full-visual-link');
+        if (hc) hc.addEventListener('click', setFlag);
+        if (fv) fv.addEventListener('click', setFlag);
+      })();
+    </script>
+  </footer>
+</body>
+</html>
