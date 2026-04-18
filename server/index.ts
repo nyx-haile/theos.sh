@@ -5,6 +5,7 @@ import { initHandleCrypto, generateKeypair, sealHandle, openHandle, type Keypair
 import { readFile } from 'node:fs/promises';
 import sodium from 'libsodium-wrappers';
 import type { VisibleArtifact } from '../src/game/server-protocol';
+import { needsDirRedirect, KNOWN_SUBDIRS } from '../src/a11y/dir-redirect';
 
 export interface TestServer {
   port: number;
@@ -137,6 +138,11 @@ async function handle(req: Request, ctx: Ctx): Promise<Response> {
   }
 
   if (req.method === 'GET') {
+    const redirectTo = needsDirRedirect(url.pathname + (url.search || ''), KNOWN_SUBDIRS);
+    if (redirectTo) {
+      return new Response(null, { status: 301, headers: { location: redirectTo } });
+    }
+
     const { join } = await import('node:path');
     let rel = url.pathname;
     if (rel === '/') rel = '/index.html';

@@ -1,9 +1,30 @@
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import solid from 'vite-plugin-solid';
 import { resolve } from 'node:path';
+import { needsDirRedirect, KNOWN_SUBDIRS } from './src/a11y/dir-redirect';
+
+/** Redirect /<subdir> → /<subdir>/ in dev so bare paths match the multi-entry
+ *  build output and don't fall through Vite's SPA index.html fallback. */
+function subdirSlashRedirect(): Plugin {
+  return {
+    name: 'theos:subdir-slash-redirect',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const target = needsDirRedirect(req.url ?? '', KNOWN_SUBDIRS);
+        if (target) {
+          res.statusCode = 301;
+          res.setHeader('Location', target);
+          res.end();
+          return;
+        }
+        next();
+      });
+    },
+  };
+}
 
 export default defineConfig({
-  plugins: [solid()],
+  plugins: [subdirSlashRedirect(), solid()],
   server: {
     port: 3000,
     open: true,
