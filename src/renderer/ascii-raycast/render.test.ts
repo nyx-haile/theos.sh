@@ -20,36 +20,40 @@ describe('renderFrame', () => {
     const frame = renderFrame(m, artifacts, pose, t);
     expect(frame.cellsWide).toBe(t.renderer.cellsWide);
     expect(frame.cellsHigh).toBe(t.renderer.cellsHigh);
-    expect(frame.glyphs.length).toBe(t.renderer.cellsWide * t.renderer.cellsHigh);
+    expect(frame.cells.length).toBe(frame.cellsWide * frame.cellsHigh);
+    expect(frame.cells[0].glyph).toBe(' ');
+    expect(frame.cells[0].hitKind).toBe('sky');
+    expect(frame.cells[0].luminance).toBe(0);
+    expect(frame.cells[0].depth).toBe(1);
   });
 
   it('frame glyphs are all strings of length 1', () => {
     const pose = makePose(0.5, 0.5, 0, 0);
     const frame = renderFrame(m, artifacts, pose, t);
-    for (const g of frame.glyphs) {
-      expect(typeof g).toBe('string');
-      expect([...g].length).toBeLessThanOrEqual(1);
+    for (const cell of frame.cells) {
+      expect(typeof cell.glyph).toBe('string');
+      expect([...cell.glyph].length).toBeLessThanOrEqual(1);
     }
   });
 
   it('frame changes when the player yaws', () => {
     const a = renderFrame(m, artifacts, makePose(0.5, 0.5, 0, 0), t);
     const b = renderFrame(m, artifacts, makePose(0.5, 0.5, Math.PI / 2, 0), t);
-    const same = a.glyphs.join('') === b.glyphs.join('');
+    const same = a.cells.map(c => c.glyph).join('') === b.cells.map(c => c.glyph).join('');
     expect(same).toBe(false);
   });
 
   it('frame changes when the player translates', () => {
     const a = renderFrame(m, artifacts, makePose(0.3, 0.5, 0, 0), t);
     const b = renderFrame(m, artifacts, makePose(0.7, 0.5, 0, 0), t);
-    const same = a.glyphs.join('') === b.glyphs.join('');
+    const same = a.cells.map(c => c.glyph).join('') === b.cells.map(c => c.glyph).join('');
     expect(same).toBe(false);
   });
 
   it('has at least some non-space glyphs (scene is not blank)', () => {
     const pose = makePose(0.5, 0.5, 0, -0.2);
     const frame = renderFrame(m, artifacts, pose, t);
-    const nonSpace = frame.glyphs.filter(g => g !== ' ').length;
+    const nonSpace = frame.cells.filter(c => c.glyph !== ' ').length;
     expect(nonSpace).toBeGreaterThan(0);
   });
 });

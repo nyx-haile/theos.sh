@@ -22,23 +22,23 @@ describe('runtime tunable mutation never leaves the world inconsistent', () => {
     game.setTunable('materializer', 'heightGridN', 64);
     game.rebuild();
     const f = game.frame();
-    expect(f.glyphs.length).toBe(defaultTunables().renderer.cellsWide * defaultTunables().renderer.cellsHigh);
+    expect(f.cells.length).toBe(defaultTunables().renderer.cellsWide * defaultTunables().renderer.cellsHigh);
   });
 
   it('fovDeg mutation produces a different frame', () => {
     const game = createGame(seed(6));
-    const before = game.frame().glyphs.join('');
+    const before = game.frame().cells.map(c => c.glyph).join('');
     game.setTunable('renderer', 'fovDeg', 110);
-    const after = game.frame().glyphs.join('');
+    const after = game.frame().cells.map(c => c.glyph).join('');
     expect(after).not.toBe(before);
   });
 
   it('amplitude mutation + rebuild produces a different frame', () => {
     const game = createGame(seed(6));
-    const before = game.frame().glyphs.join('');
+    const before = game.frame().cells.map(c => c.glyph).join('');
     game.setTunable('noise', 'amplitude', 0.01);
     game.rebuild();
-    const after = game.frame().glyphs.join('');
+    const after = game.frame().cells.map(c => c.glyph).join('');
     expect(after).not.toBe(before);
   });
 });

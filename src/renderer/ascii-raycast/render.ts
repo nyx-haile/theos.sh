@@ -1,5 +1,5 @@
 import type { ManifoldBackend, Vec3 } from '../../surface/types';
-import type { Artifact, Pose, Frame } from '../../surface-game/types';
+import type { Artifact, Pose, Frame, ShadedCell, HitKind } from '../../surface-game/types';
 import type { TunablesShape } from '../../config/tunables';
 import { makeRays } from './ray';
 import { marchTerrain } from './march';
@@ -18,7 +18,6 @@ export function renderFrame(
   const vp = { cellsWide: t.renderer.cellsWide, cellsHigh: t.renderer.cellsHigh, fovDeg: t.renderer.fovDeg };
   const rays = makeRays(m, pose, vp, t.renderer.eyeOffsetAlongNormal);
 
-  // Precompute artifact world centers.
   const centers: Vec3[] = artifacts.map(a => {
     const p = m.embed(a.u, a.v);
     const n = m.normalAt(a.u, a.v);
@@ -26,15 +25,14 @@ export function renderFrame(
   });
 
   const sceneScale = t.manifold.majorRadius + t.manifold.minorRadius;
-  const glyphs: string[] = new Array(vp.cellsWide * vp.cellsHigh);
+  const cells: ShadedCell[] = new Array(vp.cellsWide * vp.cellsHigh);
 
   for (let k = 0; k < rays.length; k++) {
-    const ray = rays[k]!;  // bounded by rays.length
+    const ray = rays[k]!;
     const terrainHit = marchTerrain(ray, m, t, heightSampler);
     const artifactHit = intersectNearestArtifact(ray, artifacts, centers);
 
-    // Choose nearer hit (both may be null, one may be null).
-    let chosen: 'terrain' | 'artifact' | 'none' = 'none';
+    let chosen: HitKind = 'sky';
     if (terrainHit && artifactHit) {
       chosen = terrainHit.distance < artifactHit.distance ? 'terrain' : 'artifact';
     } else if (terrainHit) {
@@ -48,18 +46,29 @@ export function renderFrame(
       const grazing = 1 - Math.abs(dot(terrainHit.normal, ray.direction));
       const shaded = lambert * (1 - t.renderer.silhouetteBoost) + grazing * t.renderer.silhouetteBoost;
       const falloff = 1 / (1 + t.renderer.distanceFalloffK * terrainHit.distance);
-      // Iso-height contour band in world-z; peaks of |sin| darken glyph to reveal curvature.
       const band = t.renderer.contourFreq > 0
         ? Math.abs(Math.sin(terrainHit.point[2] * t.renderer.contourFreq * Math.PI))
         : 0;
       const contour = 1 - t.renderer.contourStrength * band;
-      glyphs[k] = luminanceGlyph(shaded * falloff * contour, t.glyphs.luminanceRamp);
+      const luminance = Math.max(0, Math.min(1, shaded * falloff * contour));
+      cells[k] = {
+        glyph: luminanceGlyph(luminance, t.glyphs.luminanceRamp),
+        luminance,
+        hitKind: 'terrain',
+        depth: Math.min(1, terrainHit.distance / sceneScale),
+      };
     } else if (chosen === 'artifact' && artifactHit) {
-      glyphs[k] = artifactGlyph(artifactHit.distance, t.glyphs.artifactGlyphsNear, t.glyphs.artifactGlyphFar, sceneScale);
+      const proximity = Math.max(0, Math.min(1, 1 - artifactHit.distance / sceneScale));
+      cells[k] = {
+        glyph: artifactGlyph(artifactHit.distance, t.glyphs.artifactGlyphsNear, t.glyphs.artifactGlyphFar, sceneScale),
+        luminance: proximity,
+        hitKind: 'artifact',
+        depth: Math.min(1, artifactHit.distance / sceneScale),
+      };
     } else {
-      glyphs[k] = ' ';
+      cells[k] = { glyph: ' ', luminance: 0, hitKind: 'sky', depth: 1 };
     }
   }
 
-  return { glyphs, cellsWide: vp.cellsWide, cellsHigh: vp.cellsHigh };
+  return { cells, cellsWide: vp.cellsWide, cellsHigh: vp.cellsHigh };
 }
