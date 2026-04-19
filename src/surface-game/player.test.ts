@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { createPlayer, stepPlayer, applyKeys } from './player';
+import { createPlayer, faceTargetPose, stepPlayer, applyKeys } from './player';
+import { makeRays } from '../renderer/ascii-raycast/ray';
+import { makePose } from './types';
 import { makeSurface } from '../surface/backend';
 import { defaultTunables } from '../config/tunables';
 
@@ -97,6 +99,21 @@ describe('player K2 + C1', () => {
     stepPlayer(p, m, t, applyKeys({ e: true }), 100.0);
     expect(p.pose.yaw).toBeGreaterThanOrEqual(-Math.PI);
     expect(p.pose.yaw).toBeLessThanOrEqual(Math.PI);
+  });
+
+  it('faceTargetPose orients view forward at the target', () => {
+    const target: [number, number, number] = [0, 0, 0];
+    const u = 0, v = 0.25;
+    const eye = t.renderer.eyeOffsetAlongNormal;
+    const { yaw, pitch } = faceTargetPose(m, u, v, target, eye);
+    const pose = { ...makePose(u, v, yaw, pitch) };
+    const ray = makeRays(m, pose, { cellsWide: 1, cellsHigh: 1, fovDeg: 1 }, eye)[0]!;
+    const dx = target[0] - ray.origin[0];
+    const dy = target[1] - ray.origin[1];
+    const dz = target[2] - ray.origin[2];
+    const dmag = Math.hypot(dx, dy, dz);
+    const cos = (ray.direction[0]*dx + ray.direction[1]*dy + ray.direction[2]*dz) / dmag;
+    expect(cos).toBeGreaterThan(0.999);
   });
 
   it('C3: a W step traverses ~walkSpeed·dt of world-space arc length', () => {

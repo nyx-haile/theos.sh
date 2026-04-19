@@ -6,7 +6,7 @@ import { createStore } from 'solid-js/store';
 import { makeSurface } from '../surface/backend';
 import { materializeHeightGrid, sampleGridPeriodic } from '../surface/materialize';
 import { placeArtifacts } from './artifacts';
-import { createPlayer, stepPlayer, type KeyState } from './player';
+import { createPlayer, faceTargetPose, stepPlayer, type KeyState } from './player';
 import { renderFrame } from '../renderer/ascii-raycast/render';
 import { createTitleMarker, type TitleMarker } from '../renderer/ascii-raycast/title';
 
@@ -33,7 +33,16 @@ export function createGame(seed: Uint8Array, initial: TunablesShape = defaultTun
   let grid: Float32Array = materializeHeightGrid(backend, gridN);
   let artifacts: Artifact[] = placeArtifacts(seed, tunables, backend);
   let title: TitleMarker = createTitleMarker(tunables, seed);
-  const player = createPlayer();
+  // Spawn on top of the torus tube (v=0.25) so the title billboard at the
+  // world origin is visible across the hole on the first frame, and orient
+  // the camera to face it.
+  const spawnU = 0;
+  const spawnV = 0.25;
+  const eye = tunables.renderer.eyeOffsetAlongNormal;
+  const aim = faceTargetPose(backend, spawnU, spawnV, title.center, eye);
+  const pitchClamp = (tunables.walk.pitchClampDeg * Math.PI) / 180;
+  const aimedPitch = Math.max(-pitchClamp, Math.min(pitchClamp, aim.pitch));
+  const player = createPlayer(spawnU, spawnV, aim.yaw, aimedPitch);
   const heightSampler = (u: number, v: number) => sampleGridPeriodic(grid, gridN, u, v);
   let elapsedMs = 0;
 

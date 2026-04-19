@@ -19,6 +19,48 @@ export function createPlayer(u = 0.5, v = 0.5, yaw = 0, pitch = -0.3): Player {
   return { pose: makePose(u, v, yaw, pitch) };
 }
 
+/** Solve for (yaw, pitch) such that the eye at (u, v) — displaced by
+ *  eyeOffset along the surface normal — looks directly at `target` in
+ *  world space. Mirrors the tangent basis used by makeRays so the
+ *  resulting pose is consistent with the renderer's view transform. */
+export function faceTargetPose(
+  m: ManifoldBackend,
+  u: number,
+  v: number,
+  target: Vec3,
+  eyeOffset: number,
+): { yaw: number; pitch: number } {
+  const eps = 1e-4;
+  const p = m.embed(u, v);
+  const n = m.normalAt(u, v);
+  const ox = p[0] + eyeOffset * n[0];
+  const oy = p[1] + eyeOffset * n[1];
+  const oz = p[2] + eyeOffset * n[2];
+  let dx = target[0] - ox, dy = target[1] - oy, dz = target[2] - oz;
+  const dmag = Math.sqrt(dx*dx + dy*dy + dz*dz) || 1e-12;
+  dx /= dmag; dy /= dmag; dz /= dmag;
+
+  const pU = m.embed(u + eps, v);
+  let dU: Vec3 = [(pU[0]-p[0])/eps, (pU[1]-p[1])/eps, (pU[2]-p[2])/eps];
+  const dUn = dU[0]*n[0] + dU[1]*n[1] + dU[2]*n[2];
+  dU = [dU[0] - dUn*n[0], dU[1] - dUn*n[1], dU[2] - dUn*n[2]];
+  const dUm = Math.sqrt(dU[0]*dU[0] + dU[1]*dU[1] + dU[2]*dU[2]) || 1;
+  const tU: Vec3 = [dU[0]/dUm, dU[1]/dUm, dU[2]/dUm];
+  // tV matches makeRays: cross(tU, n) — screen-right at yaw=0.
+  const tV: Vec3 = [
+    tU[1]*n[2] - tU[2]*n[1],
+    tU[2]*n[0] - tU[0]*n[2],
+    tU[0]*n[1] - tU[1]*n[0],
+  ];
+
+  const dn  = dx*n[0]  + dy*n[1]  + dz*n[2];
+  const dtU = dx*tU[0] + dy*tU[1] + dz*tU[2];
+  const dtV = dx*tV[0] + dy*tV[1] + dz*tV[2];
+  const pitch = Math.asin(Math.max(-1, Math.min(1, dn)));
+  const yaw = Math.atan2(dtV, dtU);
+  return { yaw, pitch };
+}
+
 function wrapYaw(y: number): number {
   const pi = Math.PI, tau = 2 * pi;
   let w = ((y + pi) % tau + tau) % tau - pi;
