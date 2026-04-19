@@ -57,7 +57,7 @@ export default function SurfaceApp() {
     let out = '';
     for (let j = 0; j < frame.cellsHigh; j++) {
       for (let i = 0; i < frame.cellsWide; i++) {
-        out += frame.glyphs[j * frame.cellsWide + i];
+        out += frame.cells[j * frame.cellsWide + i]!.glyph;
       }
       out += '\n';
     }
