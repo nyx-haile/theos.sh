@@ -24,14 +24,12 @@ function seedFromHex(hex: string): Uint8Array {
 const CELL_W = 10, CELL_H = 16;
 
 export default function SurfaceApp() {
-  const urlSeed = new URL(location.href).searchParams.get('seed') ?? '00';
+  const url = new URL(location.href);
+  const urlSeed = url.searchParams.get('seed') ?? '00';
+  const testClock = url.searchParams.get('testClock') === '1';
   const seed = seedFromHex(urlSeed);
   const scheme = generateColorScheme(seed);
   const game = createGame(seed);
-
-  if ((import.meta as any).env?.DEV) {
-    (window as any).theos = { ...(window as any).theos, game, tunables: game.tunables };
-  }
 
   const keys: KeyState = applyKeys({});
   const [hintVisible, setHintVisible] = createSignal(false);
@@ -46,6 +44,7 @@ export default function SurfaceApp() {
   let raf = 0;
   let startNow = 0;
   let lastNow = 0;
+  let testElapsedMs = 0;
   let app: Applicator | null = null;
   const frameRef: Frame = { cells: [], cellsWide: 0, cellsHigh: 0 };
 
@@ -63,11 +62,7 @@ export default function SurfaceApp() {
     if (k) keys[k] = false;
   }
 
-  function loop(now: number) {
-    const elapsedMs = now - startNow;
-    const dt = Math.min(0.1, (now - lastNow) / 1000);
-    lastNow = now;
-
+  function renderOneFrame(elapsedMs: number, dt: number): void {
     if (!openHandle()) game.tick(dt, keys);
     const frame = game.frame();
     frameRef.cells = frame.cells;
@@ -75,7 +70,35 @@ export default function SurfaceApp() {
     frameRef.cellsHigh = frame.cellsHigh;
     app?.tickFrame(elapsedMs);
     setHintVisible(game.nearestArtifact() !== null);
+  }
+
+  function loop(now: number) {
+    const elapsedMs = now - startNow;
+    const dt = Math.min(0.1, (now - lastNow) / 1000);
+    lastNow = now;
+    renderOneFrame(elapsedMs, dt);
     raf = requestAnimationFrame(loop);
+  }
+
+  function stepTestFrames(frames = 1, dtMs = 16): void {
+    for (let i = 0; i < frames; i++) {
+      testElapsedMs += dtMs;
+      renderOneFrame(testElapsedMs, dtMs / 1000);
+    }
+  }
+
+  if ((import.meta as any).env?.DEV || testClock) {
+    (window as any).theos = {
+      ...(window as any).theos,
+      game,
+      tunables: game.tunables,
+      test: {
+        step: stepTestFrames,
+        setKey: (k: keyof KeyState, v: boolean) => { keys[k] = v; },
+        setKeys: (partial: Partial<KeyState>) => { Object.assign(keys, partial); },
+        get elapsedMs() { return testElapsedMs; },
+      },
+    };
   }
 
   onMount(() => {
@@ -97,9 +120,13 @@ export default function SurfaceApp() {
 
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
-    startNow = performance.now();
-    lastNow = startNow;
-    raf = requestAnimationFrame(loop);
+    if (testClock) {
+      renderOneFrame(0, 0);
+    } else {
+      startNow = performance.now();
+      lastNow = startNow;
+      raf = requestAnimationFrame(loop);
+    }
   });
   onCleanup(() => {
     window.removeEventListener('keydown', onKeyDown);
