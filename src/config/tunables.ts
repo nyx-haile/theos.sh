@@ -76,7 +76,7 @@ export function defaultTunables(): TunablesShape {
       fovDeg: 70,
       marchStepBase: 0.02,
       marchMaxSteps: 200,
-      eyeOffsetAlongNormal: 0.05,
+      eyeOffsetAlongNormal: 0.02,
       distanceFalloffK: 0.1,
       contourFreq: 8.0,
       contourStrength: 0.55,
