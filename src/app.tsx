@@ -1,6 +1,7 @@
 import { onMount, onCleanup, createSignal, Show } from 'solid-js';
 import { runOriginPhase } from './origin/anchor';
 import { generateColorScheme } from './color/scheme';
+import type { ColorScheme } from './color/scheme';
 import { Applicator } from './applicator';
 import { ASCIIRenderer } from './renderers/ascii';
 import { registerAll, makeHintOverlayEffect, makeHintTooltipEffect } from './effects/registry';
@@ -19,6 +20,7 @@ export default function App() {
   let canvasRef: HTMLCanvasElement | undefined;
   const [hintVisible, setHintVisible] = createSignal(false);
   const [openHandle, setOpenHandle] = createSignal<string | null>(null);
+  const [scheme, setScheme] = createSignal<ColorScheme | null>(null);
 
   const client = createSessionClient();
 
@@ -26,18 +28,19 @@ export default function App() {
     if (!canvasRef) return;
     try {
       const { seed } = runOriginPhase();
-      const scheme = generateColorScheme(seed);
+      const sc = generateColorScheme(seed);
+      setScheme(sc);
       const rect = canvasRef.getBoundingClientRect();
       const width  = Math.round(rect.width)  || document.documentElement.clientWidth;
       const height = Math.round(rect.height) || document.documentElement.clientHeight;
       const cols = Math.floor(width / CELL_W);
       const rows = Math.floor(height / CELL_H);
       canvasRef.width = width; canvasRef.height = height;
-      document.body.style.background = `rgb(${scheme.background.r},${scheme.background.g},${scheme.background.b})`;
+      document.body.style.background = `rgb(${sc.background.r},${sc.background.g},${sc.background.b})`;
 
       const canvas2d = canvasRef.getContext('2d')!;
       const renderer = new ASCIIRenderer(canvas2d, CELL_W, CELL_H);
-      const app = new Applicator({ seed, scheme, rows, cols, cellW: CELL_W, cellH: CELL_H, renderer });
+      const app = new Applicator({ seed, scheme: sc, rows, cols, cellW: CELL_W, cellH: CELL_H, renderer });
 
       // --- game layer ---
       const stubModule: ContentModule = {
@@ -121,8 +124,8 @@ export default function App() {
       <Show when={hintVisible() && !openHandle()}>
         <div data-testid="proximity-hint" style={{ display: 'none' }} />
       </Show>
-      <Show when={openHandle()}>
-        <DetailView handle={openHandle()!} client={client} onClose={() => setOpenHandle(null)} />
+      <Show when={openHandle() && scheme()}>
+        <DetailView handle={openHandle()!} client={client} onClose={() => setOpenHandle(null)} scheme={scheme()!} />
       </Show>
     </>
   );

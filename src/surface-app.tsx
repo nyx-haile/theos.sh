@@ -161,7 +161,7 @@ export default function SurfaceApp() {
         <div data-testid="proximity-hint" style={{ display: 'none' }} />
       </Show>
       <Show when={openHandle()}>
-        <DetailView handle={openHandle()!} client={surfaceClient} onClose={() => setOpenHandle(null)} />
+        <DetailView handle={openHandle()!} client={surfaceClient} onClose={() => setOpenHandle(null)} scheme={scheme} />
       </Show>
     </>
   );

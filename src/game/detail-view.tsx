@@ -1,4 +1,5 @@
 import { createSignal, onCleanup, onMount, Show } from 'solid-js';
+import type { ColorScheme } from '../color/scheme';
 
 export interface DetailClient {
   fetchArtifactText(handle: string): Promise<string>;
@@ -8,6 +9,7 @@ export interface DetailViewProps {
   handle: string;
   client: DetailClient;
   onClose: () => void;
+  scheme?: ColorScheme;
 }
 
 const CHARS_PER_FRAME = 3;
@@ -39,13 +41,20 @@ export function DetailView(props: DetailViewProps) {
     });
   });
 
+  const bg = props.scheme
+    ? `rgba(${props.scheme.background.r},${props.scheme.background.g},${props.scheme.background.b},0.96)`
+    : 'rgba(10,10,10,0.96)';
+  const fg = props.scheme
+    ? `rgb(${props.scheme.secondary.r},${props.scheme.secondary.g},${props.scheme.secondary.b})`
+    : '#e0e0e0';
+
   return (
     <div
       data-testid="detail-view"
       style={{
         position: 'fixed', inset: '0', 'z-index': '10',
-        background: 'rgba(10,10,10,0.96)',
-        color: '#e0e0e0',
+        background: bg,
+        color: fg,
         padding: '4rem',
         'font-family': 'ui-monospace, monospace',
         'overflow-y': 'auto',
