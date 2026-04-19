@@ -24,15 +24,6 @@ export const ALL_EFFECTS: readonly Effect[] = [
   jitterEffect,
 ] as const;
 
-export const TITLE_SCENE_EFFECTS: readonly Effect[] = [
-  charsetVariantEffect, fontVariationEffect,
-  curvatureFieldEffect, saturationFieldEffect,
-  textMaskEffect, shadow3dEffect, textDistortionEffect,
-  revealEffect, backgroundWaveEffect, textCellsEffect,
-  manifoldGenusEffect,
-  jitterEffect,
-] as const;
-
 export const WALK_SCENE_EFFECTS: readonly Effect[] = [
   charsetVariantEffect, fontVariationEffect,
   curvatureFieldEffect, saturationFieldEffect,

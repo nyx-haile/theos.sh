@@ -34,6 +34,15 @@ export function createSurfaceCellsEffect(frameRef: FrameRef): Effect {
           const b = Math.min(1, s.b * boost / 255);
           const [h, sa, v] = rgbToHsv(r, g, b);
           cell.hue = h; cell.saturation = sa; cell.value = v;
+        } else if (sc.hitKind === 'title') {
+          cell.layer = 'face';
+          cell.density = Math.max(0.6, sc.luminance);
+          const boost = 1.4;
+          const r = Math.min(1, a.r * boost / 255);
+          const g = Math.min(1, a.g * boost / 255);
+          const b = Math.min(1, a.b * boost / 255);
+          const [h, sa, v] = rgbToHsv(r, g, b);
+          cell.hue = h; cell.saturation = sa * satAt; cell.value = v;
         } else {
           cell.layer = 'void';
           cell.density = 0;

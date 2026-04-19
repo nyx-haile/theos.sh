@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { renderFrame } from './render';
+import { createTitleMarker } from './title';
 import { makeSurface } from '../../surface/backend';
 import { placeArtifacts } from '../../surface-game/artifacts';
 import { makePose } from '../../surface-game/types';
@@ -55,5 +56,28 @@ describe('renderFrame', () => {
     const frame = renderFrame(m, artifacts, pose, t);
     const nonSpace = frame.cells.filter(c => c.glyph !== ' ').length;
     expect(nonSpace).toBeGreaterThan(0);
+  });
+
+  it('title billboard is visible when player looks toward torus center', () => {
+    const title = createTitleMarker(t);
+    // Default spawn is at u=0.5, v=0.5 with normal pointing at world +x; torus
+    // center sits along that normal, so tilting pitch up brings the billboard
+    // into view well past the reveal schedule.
+    const pose = makePose(0.5, 0.5, 0, 1.3);
+    const frame = renderFrame(m, artifacts, pose, t, undefined, title, 10000);
+    const titleCells = frame.cells.filter(c => c.hitKind === 'title');
+    expect(titleCells.length).toBeGreaterThan(0);
+    const chars = new Set(titleCells.map(c => c.glyph));
+    for (const ch of chars) expect(title.text).toContain(ch);
+  });
+
+  it('title not emitted when characters not yet revealed', () => {
+    const title = createTitleMarker(t);
+    const pose = makePose(0.5, 0.5, 0, 1.3);
+    const early = renderFrame(m, artifacts, pose, t, undefined, title, 0);
+    const late = renderFrame(m, artifacts, pose, t, undefined, title, 10000);
+    const earlyCount = early.cells.filter(c => c.hitKind === 'title').length;
+    const lateCount = late.cells.filter(c => c.hitKind === 'title').length;
+    expect(lateCount).toBeGreaterThan(earlyCount);
   });
 });

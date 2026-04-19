@@ -6,9 +6,7 @@ import { generateColorScheme } from './color/scheme';
 import { ASCIIRenderer } from './renderers/ascii';
 import { Applicator } from './applicator';
 import { createSurfaceCellsEffect } from './effects/base/surface-cells';
-import { TITLE_SCENE_EFFECTS } from './effects/registry';
-import { startDissolve, __resetReveal } from './effects/base/reveal';
-import { createSceneMachine } from './surface-game/scene';
+import { WALK_SCENE_EFFECTS } from './effects/registry';
 import type { Frame } from './surface-game/types';
 
 const surfaceClient: DetailClient = {
@@ -24,15 +22,6 @@ function seedFromHex(hex: string): Uint8Array {
 }
 
 const CELL_W = 10, CELL_H = 16;
-
-const DISSOLVE_DURATION_MS = 1500;
-
-const TITLE_EFFECTS_TO_UNREGISTER = [
-  'text-mask',
-  'text-cells',
-  'reveal',
-  'manifold-genus',
-] as const;
 
 export default function SurfaceApp() {
   const urlSeed = new URL(location.href).searchParams.get('seed') ?? '00';
@@ -59,17 +48,6 @@ export default function SurfaceApp() {
   let lastNow = 0;
   let app: Applicator | null = null;
   const frameRef: Frame = { cells: [], cellsWide: 0, cellsHigh: 0 };
-  const scene = createSceneMachine();
-  let walkRegsRegistered = false;
-  let pendingReplayKey: keyof KeyState | null = null;
-  let replayClear: keyof KeyState | null = null;
-
-  function triggerDissolveIfTitle(now: number) {
-    if (scene.state() !== 'title') return;
-    scene.startDissolve(now, DISSOLVE_DURATION_MS);
-    startDissolve(now, DISSOLVE_DURATION_MS);
-    app?.emit('sceneDissolve', { duration: DISSOLVE_DURATION_MS, startedAt: now });
-  }
 
   function onKeyDown(ev: KeyboardEvent) {
     if (ev.key === 'Enter' && hintVisible() && !openHandle()) {
@@ -78,14 +56,7 @@ export default function SurfaceApp() {
       return;
     }
     const k = downMap[ev.key.toLowerCase()];
-    if (k) {
-      const prevState = scene.state();
-      triggerDissolveIfTitle(performance.now() - startNow);
-      if (prevState === 'title' && scene.state() === 'dissolve') {
-        pendingReplayKey = k;
-      }
-      if (scene.state() === 'walk') keys[k] = true;
-    }
+    if (k) keys[k] = true;
   }
   function onKeyUp(ev: KeyboardEvent) {
     const k = downMap[ev.key.toLowerCase()];
@@ -97,37 +68,13 @@ export default function SurfaceApp() {
     const dt = Math.min(0.1, (now - lastNow) / 1000);
     lastNow = now;
 
-    const sceneState = scene.tick(elapsedMs);
-    if (sceneState === 'walk' && !walkRegsRegistered) {
-      if (app) {
-        const slots = (app as any).pipeline?.slots ?? [];
-        for (const s of slots) {
-          if ((TITLE_EFFECTS_TO_UNREGISTER as readonly string[]).includes(s.name)) {
-            app.unregister({ id: s.id, name: s.name });
-          }
-        }
-        createSurfaceCellsEffect(frameRef).register(app);
-      }
-      walkRegsRegistered = true;
-      app?.emit('sceneEntered', { scene: 'walk' });
-      if (pendingReplayKey !== null) {
-        keys[pendingReplayKey] = true;
-        replayClear = pendingReplayKey;
-        pendingReplayKey = null;
-      }
-    }
-
-    if (sceneState === 'walk' && !openHandle()) game.tick(dt, keys);
-    if (replayClear !== null) {
-      keys[replayClear] = false;
-      replayClear = null;
-    }
+    if (!openHandle()) game.tick(dt, keys);
     const frame = game.frame();
     frameRef.cells = frame.cells;
     frameRef.cellsWide = frame.cellsWide;
     frameRef.cellsHigh = frame.cellsHigh;
     app?.tickFrame(elapsedMs);
-    setHintVisible(sceneState === 'walk' && game.nearestArtifact() !== null);
+    setHintVisible(game.nearestArtifact() !== null);
     raf = requestAnimationFrame(loop);
   }
 
@@ -142,8 +89,8 @@ export default function SurfaceApp() {
     c2d.textBaseline = 'alphabetic';
     const renderer = new ASCIIRenderer(c2d, CELL_W, CELL_H);
     app = new Applicator({ seed, scheme, rows: cellsHigh, cols: cellsWide, cellW: CELL_W, cellH: CELL_H, renderer });
-    __resetReveal();
-    for (const e of TITLE_SCENE_EFFECTS) e.register(app);
+    for (const e of WALK_SCENE_EFFECTS) e.register(app);
+    createSurfaceCellsEffect(frameRef).register(app);
     app.boot();
 
     document.body.style.background = `rgb(${scheme.background.r},${scheme.background.g},${scheme.background.b})`;

@@ -8,6 +8,7 @@ import { materializeHeightGrid, sampleGridPeriodic } from '../surface/materializ
 import { placeArtifacts } from './artifacts';
 import { createPlayer, stepPlayer, type KeyState } from './player';
 import { renderFrame } from '../renderer/ascii-raycast/render';
+import { createTitleMarker, type TitleMarker } from '../renderer/ascii-raycast/title';
 
 export interface Proximity {
   artifact: Artifact;
@@ -17,6 +18,7 @@ export interface Proximity {
 export interface Game {
   readonly player: Player;
   readonly tunables: TunablesShape;
+  readonly title: TitleMarker;
   setTunable: <K extends keyof TunablesShape, F extends keyof TunablesShape[K]>(group: K, field: F, value: TunablesShape[K][F]) => void;
   rebuild: () => void;
   tick: (dt: number, keys: KeyState) => void;
@@ -30,28 +32,33 @@ export function createGame(seed: Uint8Array, initial: TunablesShape = defaultTun
   let gridN: number = tunables.materializer.heightGridN;
   let grid: Float32Array = materializeHeightGrid(backend, gridN);
   let artifacts: Artifact[] = placeArtifacts(seed, tunables, backend);
+  let title: TitleMarker = createTitleMarker(tunables);
   const player = createPlayer();
   const heightSampler = (u: number, v: number) => sampleGridPeriodic(grid, gridN, u, v);
+  let elapsedMs = 0;
 
   function rebuild(): void {
     backend = makeSurface(seed, tunables);
     gridN = tunables.materializer.heightGridN;
     grid = materializeHeightGrid(backend, gridN);
     artifacts = placeArtifacts(seed, tunables, backend);
+    title = createTitleMarker(tunables);
   }
 
   return {
     player,
     get tunables() { return tunables; },
+    get title() { return title; },
     setTunable(group, field, value) {
       setTunables(group as any, field as any, value as any);
     },
     rebuild,
     tick(dt, keys) {
+      elapsedMs += dt * 1000;
       stepPlayer(player, backend, tunables, keys, dt);
     },
     frame() {
-      return renderFrame(backend, artifacts, player.pose, tunables, heightSampler);
+      return renderFrame(backend, artifacts, player.pose, tunables, heightSampler, title, elapsedMs);
     },
     nearestArtifact() {
       const range = tunables.interaction.proximityRange;

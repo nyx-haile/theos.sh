@@ -45,6 +45,37 @@ describe('surface-cells base contributor', () => {
     expect(cell.value).toBeGreaterThan(0);
   });
 
+  it('routes title hits through face layer with accent-tinted HSV', () => {
+    const seed = new Uint8Array(32).fill(5);
+    const scheme = generateColorScheme(seed);
+    const app = new Applicator({ seed, scheme, rows: 1, cols: 1, cellW: 10, cellH: 10, renderer: makeCanvas() });
+    const frameRef: FrameRef = { cells: [makeShaded('title', 't', 0.9)], cellsWide: 1, cellsHigh: 1 };
+    createSurfaceCellsEffect(frameRef).register(app);
+    app.boot();
+    app.tickFrame(16);
+    const cell = (app as any).pipeline.frame[0];
+    expect(cell.layer).toBe('face');
+    expect(cell.charOverride).toBe('t');
+    expect(cell.value).toBeGreaterThan(0);
+  });
+
+  it('title saturation scales with saturation-field multiplier', () => {
+    const seed = new Uint8Array(32).fill(11);
+    const scheme = generateColorScheme(seed);
+    const app = new Applicator({ seed, scheme, rows: 1, cols: 1, cellW: 10, cellH: 10, renderer: makeCanvas() });
+    const frameRef: FrameRef = { cells: [makeShaded('title', 'e', 0.8)], cellsWide: 1, cellsHigh: 1 };
+    createSurfaceCellsEffect(frameRef).register(app);
+    // Prime saturation field with a known multiplier before boot fires the contributor.
+    app.on('fieldsReady', () => { app.context().satField[0] = 0.25; }, { priority: 999 });
+    app.boot();
+    app.tickFrame(16);
+    const low = (app as any).pipeline.frame[0].saturation;
+    app.context().satField[0] = 1.0;
+    app.tickFrame(32);
+    const high = (app as any).pipeline.frame[0].saturation;
+    expect(high).toBeGreaterThan(low);
+  });
+
   it('density equals luminance for terrain cells', () => {
     const seed = new Uint8Array(32).fill(1);
     const scheme = generateColorScheme(seed);

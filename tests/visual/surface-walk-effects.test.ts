@@ -37,13 +37,13 @@ describe('surface walk scene with effects visual', () => {
     if (server && !server.killed) server.kill('SIGTERM');
   });
 
-  it('post-dissolve walk frame is colored and deterministic for seed=bb', async () => {
+  it('walk frame is colored and deterministic for seed=bb', async () => {
     await page.goto('http://localhost:3000/surface/?seed=bb', { waitUntil: 'domcontentloaded' });
     await page.keyboard.down('w');
     await new Promise(r => setTimeout(r, 100));
     await page.keyboard.up('w');
     await new Promise(r => setTimeout(r, 2500));
     const buf = await page.screenshot({ type: 'png' });
-    expect(sha(buf as Buffer)).toMatchInlineSnapshot(`"e1cacb61c5382840"`);
+    expect(sha(buf as Buffer)).toMatchInlineSnapshot(`"f28c1c983ccb0476"`);
   }, 30000);
 });

@@ -11,9 +11,6 @@ export interface SignalMap {
   'frameEnd':     { elapsed: number };
   'postRender':   { elapsed: number };
 
-  'sceneDissolve': { duration: number; startedAt: number };
-  'sceneEntered':  { scene: 'title' | 'walk' };
-
   'keyPress':     { key: string; t: number };
 
   'opApplied':    { op: PathOp; from: Coord; to: Coord };
