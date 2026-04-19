@@ -25,8 +25,18 @@ export interface Viewport {
   fovDeg: number;
 }
 
+export type HitKind = 'terrain' | 'artifact' | 'sky';
+
+export interface ShadedCell {
+  glyph: string;         // from existing luminanceGlyph/artifactGlyph mapping
+  luminance: number;     // 0..1, the shaded * falloff * contour scalar for terrain,
+                         //       or artifact proximity scalar for artifact cells; 0 for sky
+  hitKind: HitKind;
+  depth: number;         // 0..1, normalized by sceneScale; sky = 1
+}
+
 export interface Frame {
-  glyphs: string[];           // length = cellsWide * cellsHigh, row-major (row j of width cellsWide)
+  cells: ShadedCell[];   // length = cellsWide * cellsHigh, row-major
   cellsWide: number;
   cellsHigh: number;
 }
