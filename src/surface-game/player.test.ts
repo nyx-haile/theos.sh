@@ -51,6 +51,30 @@ describe('player K2 + C1', () => {
     expect(pE.pose.yaw).toBeGreaterThan(0);
   });
 
+  it('D strafes the player along screen-right (tU × n direction)', () => {
+    const p = createPlayer(0.5, 0.5);
+    const p0 = m.embed(p.pose.u, p.pose.v);
+    const eps = 1e-4;
+    const n = m.normalAt(p.pose.u, p.pose.v);
+    const pU = m.embed(p.pose.u + eps, p.pose.v);
+    const dU: [number, number, number] = [(pU[0]-p0[0])/eps, (pU[1]-p0[1])/eps, (pU[2]-p0[2])/eps];
+    const dUn = dU[0]*n[0] + dU[1]*n[1] + dU[2]*n[2];
+    const tU: [number, number, number] = [dU[0]-dUn*n[0], dU[1]-dUn*n[1], dU[2]-dUn*n[2]];
+    const tUmag = Math.hypot(tU[0], tU[1], tU[2]) || 1;
+    const tUhat: [number, number, number] = [tU[0]/tUmag, tU[1]/tUmag, tU[2]/tUmag];
+    // screen-right = tU × n (right-handed: forward = tU, up = n, right = forward × up)
+    const screenRight: [number, number, number] = [
+      tUhat[1]*n[2] - tUhat[2]*n[1],
+      tUhat[2]*n[0] - tUhat[0]*n[2],
+      tUhat[0]*n[1] - tUhat[1]*n[0],
+    ];
+    stepPlayer(p, m, t, applyKeys({ d: true }), 0.05);
+    const p1 = m.embed(p.pose.u, p.pose.v);
+    const disp: [number, number, number] = [p1[0]-p0[0], p1[1]-p0[1], p1[2]-p0[2]];
+    const dot = disp[0]*screenRight[0] + disp[1]*screenRight[1] + disp[2]*screenRight[2];
+    expect(dot).toBeGreaterThan(0);
+  });
+
   it('R increases pitch, F decreases pitch, both clamp at ±clamp', () => {
     const p = createPlayer(0.5, 0.5);
     stepPlayer(p, m, t, applyKeys({ r: true }), 10.0); // way more than clamp range

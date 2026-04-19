@@ -72,11 +72,11 @@ export function stepPlayer(player: Player, m: ManifoldBackend, t: TunablesShape,
   dU = [dU[0] - dUn*n[0], dU[1] - dUn*n[1], dU[2] - dUn*n[2]];
   const dUmag = Math.sqrt(dU[0]**2 + dU[1]**2 + dU[2]**2) || 1;
   const tU: Vec3 = [dU[0]/dUmag, dU[1]/dUmag, dU[2]/dUmag];
-  // Right = n × tU.
+  // Right = tU × n (screen-right under right-handed forward × up).
   const tR: Vec3 = [
-    n[1]*tU[2] - n[2]*tU[1],
-    n[2]*tU[0] - n[0]*tU[2],
-    n[0]*tU[1] - n[1]*tU[0],
+    tU[1]*n[2] - tU[2]*n[1],
+    tU[2]*n[0] - tU[0]*n[2],
+    tU[0]*n[1] - tU[1]*n[0],
   ];
   const cosY = Math.cos(pose.yaw), sinY = Math.sin(pose.yaw);
   const fwd: Vec3 = [cosY*tU[0] + sinY*tR[0], cosY*tU[1] + sinY*tR[1], cosY*tU[2] + sinY*tR[2]];

@@ -29,7 +29,7 @@ export function makeRays(m: ManifoldBackend, pose: Pose, vp: Viewport, eyeOffset
   // Make dU strictly tangent (remove any component along n).
   const dUn = dU[0]*n[0]+dU[1]*n[1]+dU[2]*n[2];
   const tU = norm(sub(dU, scale(n, dUn)));
-  const tV = norm(cross(n, tU));  // right-handed tangent basis
+  const tV = norm(cross(tU, n));  // screen-right at yaw=0 (forward × up)
 
   // View forward in tangent plane from yaw, then pitch toward n.
   const cosY = Math.cos(pose.yaw), sinY = Math.sin(pose.yaw);
