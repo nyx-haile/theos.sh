@@ -6,7 +6,9 @@ import { generateColorScheme } from './color/scheme';
 import { ASCIIRenderer } from './renderers/ascii';
 import { Applicator } from './applicator';
 import { createSurfaceCellsEffect } from './effects/base/surface-cells';
-import { WALK_SCENE_EFFECTS } from './effects/registry';
+import { TITLE_SCENE_EFFECTS } from './effects/registry';
+import { startDissolve, __resetReveal } from './effects/base/reveal';
+import { createSceneMachine } from './surface-game/scene';
 import type { Frame } from './surface-game/types';
 
 const surfaceClient: DetailClient = {
@@ -22,6 +24,15 @@ function seedFromHex(hex: string): Uint8Array {
 }
 
 const CELL_W = 10, CELL_H = 16;
+
+const DISSOLVE_DURATION_MS = 1500;
+
+const TITLE_EFFECTS_TO_UNREGISTER = [
+  'text-mask',
+  'text-cells',
+  'reveal',
+  'manifold-genus',
+] as const;
 
 export default function SurfaceApp() {
   const urlSeed = new URL(location.href).searchParams.get('seed') ?? '00';
@@ -43,6 +54,20 @@ export default function SurfaceApp() {
     w: 'w', a: 'a', s: 's', d: 'd', q: 'q', e: 'e', r: 'r', f: 'f',
   };
 
+  let raf = 0;
+  let startNow = 0;
+  let lastNow = 0;
+  let app: Applicator | null = null;
+  const frameRef: Frame = { cells: [], cellsWide: 0, cellsHigh: 0 };
+  const scene = createSceneMachine();
+  let walkRegsRegistered = false;
+
+  function triggerDissolveIfTitle(now: number) {
+    if (scene.state() !== 'title') return;
+    scene.startDissolve(now, DISSOLVE_DURATION_MS);
+    startDissolve(now, DISSOLVE_DURATION_MS);
+  }
+
   function onKeyDown(ev: KeyboardEvent) {
     if (ev.key === 'Enter' && hintVisible() && !openHandle()) {
       const near = game.nearestArtifact();
@@ -50,30 +75,42 @@ export default function SurfaceApp() {
       return;
     }
     const k = downMap[ev.key.toLowerCase()];
-    if (k) keys[k] = true;
+    if (k) {
+      triggerDissolveIfTitle(performance.now() - startNow);
+      if (scene.state() === 'walk') keys[k] = true;
+    }
   }
   function onKeyUp(ev: KeyboardEvent) {
     const k = downMap[ev.key.toLowerCase()];
     if (k) keys[k] = false;
   }
 
-  let raf = 0;
-  let startNow = 0;
-  let lastNow = 0;
-  let app: Applicator | null = null;
-  const frameRef: Frame = { cells: [], cellsWide: 0, cellsHigh: 0 };
-
   function loop(now: number) {
     const elapsedMs = now - startNow;
     const dt = Math.min(0.1, (now - lastNow) / 1000);
     lastNow = now;
-    if (!openHandle()) game.tick(dt, keys);
+
+    const sceneState = scene.tick(elapsedMs);
+    if (sceneState === 'walk' && !walkRegsRegistered) {
+      if (app) {
+        const slots = (app as any).pipeline?.slots ?? [];
+        for (const s of slots) {
+          if ((TITLE_EFFECTS_TO_UNREGISTER as readonly string[]).includes(s.name)) {
+            app.unregister({ id: s.id, name: s.name });
+          }
+        }
+        createSurfaceCellsEffect(frameRef).register(app);
+      }
+      walkRegsRegistered = true;
+    }
+
+    if (sceneState === 'walk' && !openHandle()) game.tick(dt, keys);
     const frame = game.frame();
     frameRef.cells = frame.cells;
     frameRef.cellsWide = frame.cellsWide;
     frameRef.cellsHigh = frame.cellsHigh;
     app?.tickFrame(elapsedMs);
-    setHintVisible(game.nearestArtifact() !== null);
+    setHintVisible(sceneState === 'walk' && game.nearestArtifact() !== null);
     raf = requestAnimationFrame(loop);
   }
 
@@ -88,8 +125,8 @@ export default function SurfaceApp() {
     c2d.textBaseline = 'alphabetic';
     const renderer = new ASCIIRenderer(c2d, CELL_W, CELL_H);
     app = new Applicator({ seed, scheme, rows: cellsHigh, cols: cellsWide, cellW: CELL_W, cellH: CELL_H, renderer });
-    for (const e of WALK_SCENE_EFFECTS) e.register(app);
-    createSurfaceCellsEffect(frameRef).register(app);
+    __resetReveal();
+    for (const e of TITLE_SCENE_EFFECTS) e.register(app);
     app.boot();
 
     document.body.style.background = `rgb(${scheme.background.r},${scheme.background.g},${scheme.background.b})`;
