@@ -30,4 +30,20 @@ describe('game loop', () => {
     const after = game.frame().glyphs.join('');
     expect(after).not.toBe(before);
   });
+
+  it('nearestArtifact returns null when player is far from every artifact', () => {
+    const t = defaultTunables();
+    t.interaction.proximityRange = 1e-6;
+    const game = createGame(seed(4), t);
+    expect(game.nearestArtifact()).toBeNull();
+  });
+
+  it('nearestArtifact returns the closest artifact when within proximity', () => {
+    const t = defaultTunables();
+    t.interaction.proximityRange = 1.0; // captures every placed artifact
+    const game = createGame(seed(4), t);
+    const near = game.nearestArtifact();
+    expect(near).not.toBeNull();
+    expect(near!.distance).toBeLessThanOrEqual(Math.SQRT1_2);
+  });
 });

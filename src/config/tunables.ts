@@ -53,6 +53,11 @@ export interface TunablesShape {
     pitchClampDeg: number;
     geodesicSubsteps: number; // RK2 substeps per frame for C3 geodesic integration
   };
+  interaction: {
+    // Toroidal-Euclidean (u,v) distance within which an artifact is considered
+    // "in proximity" — surfaces a hint and arms the Enter binding.
+    proximityRange: number;
+  };
 }
 
 export function defaultTunables(): TunablesShape {
@@ -97,6 +102,9 @@ export function defaultTunables(): TunablesShape {
       pitchRate: Math.PI / 3,
       pitchClampDeg: 89,
       geodesicSubsteps: 4,
+    },
+    interaction: {
+      proximityRange: 0.04,
     },
   };
 }

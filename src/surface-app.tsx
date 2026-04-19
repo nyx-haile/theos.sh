@@ -1,6 +1,12 @@
-import { createSignal, onCleanup, onMount } from 'solid-js';
+import { createSignal, onCleanup, onMount, Show } from 'solid-js';
 import { createGame } from './surface-game/loop';
 import { applyKeys, type KeyState } from './surface-game/player';
+import { DetailView, type DetailClient } from './game/detail-view';
+
+const surfaceClient: DetailClient = {
+  fetchArtifactText: async (handle) =>
+    `# artifact ${handle}\n\nyou stand on a ridge of the surface.\nthe terrain remembers nothing about you, and yet you are here.\n`,
+};
 
 function seedFromHex(hex: string): Uint8Array {
   const out = new Uint8Array(32);
@@ -20,12 +26,19 @@ export default function SurfaceApp() {
 
   const keys: KeyState = applyKeys({});
   const [frameText, setFrameText] = createSignal('');
+  const [hintVisible, setHintVisible] = createSignal(false);
+  const [openHandle, setOpenHandle] = createSignal<string | null>(null);
 
   const downMap: Record<string, keyof KeyState> = {
     w: 'w', a: 'a', s: 's', d: 'd', q: 'q', e: 'e', r: 'r', f: 'f',
   };
 
   function onKeyDown(ev: KeyboardEvent) {
+    if (ev.key === 'Enter' && hintVisible() && !openHandle()) {
+      const near = game.nearestArtifact();
+      if (near) setOpenHandle(`surface-${near.artifact.id}`);
+      return;
+    }
     const k = downMap[ev.key.toLowerCase()];
     if (k) keys[k] = true;
   }
@@ -39,7 +52,7 @@ export default function SurfaceApp() {
   function loop(now: number) {
     const dt = Math.min(0.1, (now - last) / 1000);
     last = now;
-    game.tick(dt, keys);
+    if (!openHandle()) game.tick(dt, keys);
     const frame = game.frame();
     let out = '';
     for (let j = 0; j < frame.cellsHigh; j++) {
@@ -49,6 +62,7 @@ export default function SurfaceApp() {
       out += '\n';
     }
     setFrameText(out);
+    setHintVisible(game.nearestArtifact() !== null);
     raf = requestAnimationFrame(loop);
   }
 
@@ -64,20 +78,28 @@ export default function SurfaceApp() {
   });
 
   return (
-    <pre style={{
-      margin: 0,
-      padding: 0,
-      background: '#000',
-      color: '#ddd',
-      'font-family': 'ui-monospace, Menlo, monospace',
-      'font-size': '12px',
-      'line-height': '1',
-      'white-space': 'pre',
-      width: '100vw',
-      height: '100vh',
-      display: 'flex',
-      'align-items': 'center',
-      'justify-content': 'center',
-    }}>{frameText()}</pre>
+    <>
+      <pre style={{
+        margin: 0,
+        padding: 0,
+        background: '#000',
+        color: '#ddd',
+        'font-family': 'ui-monospace, Menlo, monospace',
+        'font-size': '12px',
+        'line-height': '1',
+        'white-space': 'pre',
+        width: '100vw',
+        height: '100vh',
+        display: 'flex',
+        'align-items': 'center',
+        'justify-content': 'center',
+      }}>{frameText()}</pre>
+      <Show when={hintVisible() && !openHandle()}>
+        <div data-testid="proximity-hint" style={{ display: 'none' }} />
+      </Show>
+      <Show when={openHandle()}>
+        <DetailView handle={openHandle()!} client={surfaceClient} onClose={() => setOpenHandle(null)} />
+      </Show>
+    </>
   );
 }

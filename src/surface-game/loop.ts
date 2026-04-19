@@ -9,6 +9,11 @@ import { placeArtifacts } from './artifacts';
 import { createPlayer, stepPlayer, type KeyState } from './player';
 import { renderFrame } from '../renderer/ascii-raycast/render';
 
+export interface Proximity {
+  artifact: Artifact;
+  distance: number;
+}
+
 export interface Game {
   readonly player: Player;
   readonly tunables: TunablesShape;
@@ -16,6 +21,7 @@ export interface Game {
   rebuild: () => void;
   tick: (dt: number, keys: KeyState) => void;
   frame: () => Frame;
+  nearestArtifact: () => Proximity | null;
 }
 
 export function createGame(seed: Uint8Array, initial: TunablesShape = defaultTunables()): Game {
@@ -46,6 +52,21 @@ export function createGame(seed: Uint8Array, initial: TunablesShape = defaultTun
     },
     frame() {
       return renderFrame(backend, artifacts, player.pose, tunables, heightSampler);
+    },
+    nearestArtifact() {
+      const range = tunables.interaction.proximityRange;
+      let best: Proximity | null = null;
+      for (const a of artifacts) {
+        const du = Math.abs(player.pose.u - a.u);
+        const dv = Math.abs(player.pose.v - a.v);
+        const duP = Math.min(du, 1 - du);
+        const dvP = Math.min(dv, 1 - dv);
+        const d = Math.hypot(duP, dvP);
+        if (d <= range && (best === null || d < best.distance)) {
+          best = { artifact: a, distance: d };
+        }
+      }
+      return best;
     },
   };
 }
