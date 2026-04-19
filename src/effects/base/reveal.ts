@@ -6,13 +6,25 @@ export const REVEAL_TOTAL_MS = 6000;
 let textCellIndices: Uint32Array | null = null;
 let revealedMask: Uint8Array | null = null;
 let totalTextCells = 0;
+let dissolveStartedAt: number | null = null;
+let dissolveDuration = 0;
 
 export function isRevealed(idx: number): boolean {
   return revealedMask !== null && revealedMask[idx] === 1;
 }
 
+export function startDissolve(startedAt: number, duration: number): void {
+  dissolveStartedAt = startedAt;
+  dissolveDuration = Math.max(1, duration);
+}
+
+export function __dissolveState(): { startedAt: number; duration: number } | null {
+  return dissolveStartedAt === null ? null : { startedAt: dissolveStartedAt, duration: dissolveDuration };
+}
+
 export function __resetReveal(): void {
   textCellIndices = null; revealedMask = null; totalTextCells = 0;
+  dissolveStartedAt = null; dissolveDuration = 0;
 }
 
 function hashKey(seed: Uint8Array, label: string): number {
@@ -45,6 +57,14 @@ export const revealEffect: Effect = {
 
     app.on('frameBegin', ({ elapsed }) => {
       if (!textCellIndices || !revealedMask) return;
+      if (dissolveStartedAt !== null) {
+        const dt = Math.max(0, elapsed - dissolveStartedAt);
+        const dTNorm = Math.min(1, dt / dissolveDuration);
+        const numHidden = Math.round(totalTextCells * dTNorm);
+        for (let k = 0; k < totalTextCells; k++) revealedMask[textCellIndices[k]!] = 1;
+        for (let k = 0; k < numHidden; k++) revealedMask[textCellIndices[totalTextCells - 1 - k]!] = 0;
+        return;
+      }
       const tNorm = Math.min(1, elapsed / REVEAL_TOTAL_MS);
       const eased = Math.pow(tNorm, 1.5);
       const numRevealed = Math.min(totalTextCells, Math.round(totalTextCells * eased));

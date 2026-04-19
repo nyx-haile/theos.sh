@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { Applicator } from '../../applicator';
 import type { Renderer } from '../../renderers/types';
 import type { ColorScheme } from '../../color/scheme';
-import { revealEffect, isRevealed, __resetReveal } from './reveal';
+import { revealEffect, isRevealed, __resetReveal, startDissolve, __dissolveState } from './reveal';
 
 const scheme: ColorScheme = { background:{r:0,g:0,b:0}, primary:{r:1,g:1,b:1}, secondary:{r:1,g:1,b:1}, accent:{r:1,g:1,b:1} };
 const nullRenderer: Renderer = { init(){}, drawFrame(){}, dispose(){} };
@@ -44,5 +44,27 @@ describe('reveal', () => {
       return out;
     };
     expect(run()).toEqual(run());
+  });
+});
+
+describe('reveal dissolve mode', () => {
+  beforeEach(() => __resetReveal());
+
+  it('fully revealed at dissolve start, empty at dissolve end', () => {
+    const app = new Applicator({ seed: new Uint8Array(32), scheme, rows: 2, cols: 2, cellW:15, cellH:15, renderer: nullRenderer });
+    revealEffect.register(app);
+    app.on('buildMask', () => primeMask(app.context(), [0, 1, 2, 3]), { priority: 999 });
+    app.boot();
+
+    startDissolve(0, 1500);
+    expect(__dissolveState()).toEqual({ startedAt: 0, duration: 1500 });
+
+    app.tickFrame(0);
+    let count = 0; for (let i = 0; i < 4; i++) if (isRevealed(i)) count++;
+    expect(count).toBe(4);
+
+    app.tickFrame(1500);
+    count = 0; for (let i = 0; i < 4; i++) if (isRevealed(i)) count++;
+    expect(count).toBe(0);
   });
 });
