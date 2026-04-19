@@ -71,4 +71,54 @@ describe('marchTerrain', () => {
       expect(Math.sqrt(dx*dx + dy*dy + dz*dz)).toBeGreaterThan(0.05);
     }
   });
+
+  it('coarse->fine transition: hit position is accurate on a flat surface', () => {
+    // Regression for the prevD=stride bug in the coarse→fine handoff.
+    //
+    // Setup: amplitude is set very small (1e-4) so that A = r * amplitude ≈ 3e-5
+    // is much less than fineStep = 0.02.  After one coarse stride the ray lands
+    // at base2 ≈ A (inside fineBand), and the very first fine step immediately
+    // overshoots the surface (d ≈ −fineStep < 0).  This is exactly the scenario
+    // where the bug fires on the first fine step after a coarse stride.
+    //
+    // With a flat sampler (h ≡ 0) the bumpy surface IS the base torus. The
+    // analytic hit is the top of the tube: (0, R, r).
+    //
+    // Bug: prevD = last coarse stride (~0.54 wu) instead of the true signed-
+    // distance at the new position (~A ≈ 3e-5).  k = prevD/(prevD − d) ≈ 1
+    // places the interpolated crossing near the END of the fine step.
+    // Measured error ≈ fineStep − A ≈ 0.019 world units.
+    //
+    // Fix: prevD is recomputed from the actual SDF after each coarse stride.
+    // Measured error after fix: 0.000 (exact analytic hit).
+    const R = t.manifold.majorRadius;
+    const r = t.manifold.minorRadius;
+
+    const tunables = { ...t, noise: { ...t.noise, amplitude: 1e-4 } };
+
+    // Flat sampler: h ≡ 0 everywhere → bumpy surface coincides with base torus.
+    const flatH = (_u: number, _v: number) => 0;
+
+    // Ray straight down from far above the tube top.  At rho = R the tube SDF
+    // is purely radial in Z, so the analytic hit is (0, R, r).
+    const origin: [number, number, number] = [0, R, 10];
+    const direction: [number, number, number] = [0, 0, -1];
+
+    const hit = marchTerrain({ origin, direction }, m, tunables, flatH);
+    expect(hit).not.toBeNull();
+
+    if (hit) {
+      const expectedX = 0, expectedY = R, expectedZ = r;
+      const dx = hit.point[0] - expectedX;
+      const dy = hit.point[1] - expectedY;
+      const dz = hit.point[2] - expectedZ;
+      const err = Math.sqrt(dx*dx + dy*dy + dz*dz);
+
+      // Tolerance: 0.5 × fineStep = 0.01.
+      // The bug produces err ≈ 0.019 (nearly a full fine step), which exceeds
+      // this bound.  The fix produces err = 0.000 (exact analytic crossing).
+      const fineStep = t.renderer.marchStepBase;
+      expect(err).toBeLessThan(fineStep * 0.5);
+    }
+  });
 });

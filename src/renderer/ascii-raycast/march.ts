@@ -104,7 +104,22 @@ export function marchTerrain(
       const stride = base - A;
       posX += dX * stride; posY += dY * stride; posZ += dZ * stride;
       traveled += stride;
-      prevD = stride;
+
+      // Recompute prevD at the new position as the true signed distance,
+      // not the stride we just took. stride is in units of ray-advance;
+      // prevD must be a signed-distance-to-surface so the fine-phase
+      // linear-refinement k = prevD / (prevD - d) is unit-consistent.
+      const rho2 = Math.sqrt(posX*posX + posY*posY);
+      const dr2 = rho2 - R;
+      const base2 = Math.sqrt(dr2*dr2 + posZ*posZ) - r;
+      if (base2 > fineBand) {
+        prevD = base2 - A;
+      } else {
+        const uA = ((Math.atan2(posY, posX) / TAU) + 1) % 1;
+        const vA = ((Math.atan2(posZ, rho2 - R) / TAU) + 1) % 1;
+        prevD = base2 - sampleH(uA, vA);
+      }
+
       if (traveled > farLimit) return null;
       continue;
     }
