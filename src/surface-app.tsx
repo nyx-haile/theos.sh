@@ -61,11 +61,14 @@ export default function SurfaceApp() {
   const frameRef: Frame = { cells: [], cellsWide: 0, cellsHigh: 0 };
   const scene = createSceneMachine();
   let walkRegsRegistered = false;
+  let pendingReplayKey: keyof KeyState | null = null;
+  let replayClear: keyof KeyState | null = null;
 
   function triggerDissolveIfTitle(now: number) {
     if (scene.state() !== 'title') return;
     scene.startDissolve(now, DISSOLVE_DURATION_MS);
     startDissolve(now, DISSOLVE_DURATION_MS);
+    app?.emit('sceneDissolve', { duration: DISSOLVE_DURATION_MS, startedAt: now });
   }
 
   function onKeyDown(ev: KeyboardEvent) {
@@ -76,7 +79,11 @@ export default function SurfaceApp() {
     }
     const k = downMap[ev.key.toLowerCase()];
     if (k) {
+      const prevState = scene.state();
       triggerDissolveIfTitle(performance.now() - startNow);
+      if (prevState === 'title' && scene.state() === 'dissolve') {
+        pendingReplayKey = k;
+      }
       if (scene.state() === 'walk') keys[k] = true;
     }
   }
@@ -102,9 +109,19 @@ export default function SurfaceApp() {
         createSurfaceCellsEffect(frameRef).register(app);
       }
       walkRegsRegistered = true;
+      app?.emit('sceneEntered', { scene: 'walk' });
+      if (pendingReplayKey !== null) {
+        keys[pendingReplayKey] = true;
+        replayClear = pendingReplayKey;
+        pendingReplayKey = null;
+      }
     }
 
     if (sceneState === 'walk' && !openHandle()) game.tick(dt, keys);
+    if (replayClear !== null) {
+      keys[replayClear] = false;
+      replayClear = null;
+    }
     const frame = game.frame();
     frameRef.cells = frame.cells;
     frameRef.cellsWide = frame.cellsWide;
