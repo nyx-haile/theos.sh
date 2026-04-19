@@ -4,10 +4,10 @@ import { applyKeys, type KeyState } from './surface-game/player';
 import { DetailView, type DetailClient } from './game/detail-view';
 import { generateColorScheme } from './color/scheme';
 import { ASCIIRenderer } from './renderers/ascii';
-import { createRenderContext } from './applicator/context';
-import type { CellState, RenderContext } from './renderers/types';
-import { createCellState, resetCellState } from './renderers/types';
-import { hsvToRgbString } from './renderers/hsv-to-rgb';
+import { Applicator } from './applicator';
+import { createSurfaceCellsEffect } from './effects/base/surface-cells';
+import { WALK_SCENE_EFFECTS } from './effects/registry';
+import type { Frame } from './surface-game/types';
 
 const surfaceClient: DetailClient = {
   fetchArtifactText: async (handle) =>
@@ -58,42 +58,21 @@ export default function SurfaceApp() {
   }
 
   let raf = 0;
-  let lastNow = performance.now();
-  let ctx: RenderContext | null = null;
-  let renderer: ASCIIRenderer | null = null;
-  let cells: CellState[] = [];
+  let startNow = 0;
+  let lastNow = 0;
+  let app: Applicator | null = null;
+  const frameRef: Frame = { cells: [], cellsWide: 0, cellsHigh: 0 };
 
   function loop(now: number) {
+    const elapsedMs = now - startNow;
     const dt = Math.min(0.1, (now - lastNow) / 1000);
     lastNow = now;
     if (!openHandle()) game.tick(dt, keys);
     const frame = game.frame();
-
-    if (ctx && renderer) {
-      const rows = ctx.rows, cols = ctx.cols;
-      ctx.frame.elapsed = now;
-      ctx.frame.dt = dt * 1000;
-      ctx.frame.timePhase = (now / 800) * Math.PI * 2;
-
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-          const idx = r * cols + c;
-          const cell = cells[idx]!;
-          resetCellState(cell);
-          cell.row = r; cell.col = c;
-          const sc = frame.cells[idx]!;
-          cell.charOverride = sc.glyph;
-          const t = sc.luminance;
-          const { primary: p, accent: a } = scheme;
-          const rr = (p.r + (a.r - p.r) * t) / 255;
-          const gg = (p.g + (a.g - p.g) * t) / 255;
-          const bb = (p.b + (a.b - p.b) * t) / 255;
-          cell.colorOverride = `rgb(${Math.round(rr*255)},${Math.round(gg*255)},${Math.round(bb*255)})`;
-        }
-      }
-      renderer.drawFrame(cells, ctx);
-    }
-
+    frameRef.cells = frame.cells;
+    frameRef.cellsWide = frame.cellsWide;
+    frameRef.cellsHigh = frame.cellsHigh;
+    app?.tickFrame(elapsedMs);
     setHintVisible(game.nearestArtifact() !== null);
     raf = requestAnimationFrame(loop);
   }
@@ -107,22 +86,25 @@ export default function SurfaceApp() {
     const c2d = canvasRef.getContext('2d')!;
     c2d.font = `bold ${CELL_H}px ui-monospace, Menlo, monospace`;
     c2d.textBaseline = 'alphabetic';
-    renderer = new ASCIIRenderer(c2d, CELL_W, CELL_H);
-    ctx = createRenderContext({ rows: cellsHigh, cols: cellsWide, cellW: CELL_W, cellH: CELL_H, scheme });
-    cells = new Array(cellsHigh * cellsWide);
-    for (let r = 0; r < cellsHigh; r++) for (let c = 0; c < cellsWide; c++) cells[r * cellsWide + c] = createCellState(r, c);
-    renderer.init(ctx);
+    const renderer = new ASCIIRenderer(c2d, CELL_W, CELL_H);
+    app = new Applicator({ seed, scheme, rows: cellsHigh, cols: cellsWide, cellW: CELL_W, cellH: CELL_H, renderer });
+    for (const e of WALK_SCENE_EFFECTS) e.register(app);
+    createSurfaceCellsEffect(frameRef).register(app);
+    app.boot();
 
     document.body.style.background = `rgb(${scheme.background.r},${scheme.background.g},${scheme.background.b})`;
 
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
+    startNow = performance.now();
+    lastNow = startNow;
     raf = requestAnimationFrame(loop);
   });
   onCleanup(() => {
     window.removeEventListener('keydown', onKeyDown);
     window.removeEventListener('keyup', onKeyUp);
     cancelAnimationFrame(raf);
+    app?.dispose();
   });
 
   return (
