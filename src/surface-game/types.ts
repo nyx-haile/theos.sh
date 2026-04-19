@@ -25,7 +25,7 @@ export interface Viewport {
   fovDeg: number;
 }
 
-export type HitKind = 'terrain' | 'artifact' | 'title' | 'sky';
+export type HitKind = 'terrain' | 'artifact' | 'title' | 'title-shadow' | 'sky';
 
 export interface ShadedCell {
   glyph: string;         // from existing luminanceGlyph/artifactGlyph mapping

@@ -5,7 +5,7 @@ import { makeRays } from './ray';
 import { marchTerrain } from './march';
 import { intersectNearestArtifact } from './artifact-intersect';
 import { luminanceGlyph, artifactGlyph } from './glyphs';
-import { intersectTitle, isTitleCharRevealed, type TitleMarker } from './title';
+import { intersectTitle, type TitleMarker } from './title';
 
 function dot(a: Vec3, b: Vec3): number { return a[0]*b[0] + a[1]*b[1] + a[2]*b[2]; }
 
@@ -42,14 +42,16 @@ export function renderFrame(
     const ray = rays[k]!;
     const terrainHit = marchTerrain(ray, m, t, heightSampler);
     const artifactHit = intersectNearestArtifact(ray, artifacts, centers);
-    const titleHit = title ? intersectTitle(ray, title, playerPos) : null;
-    const titleReady = title && titleHit ? isTitleCharRevealed(title, titleHit.charIndex, now) : false;
+    const titleHit = title ? intersectTitle(ray, title, playerPos, now) : null;
 
     let chosen: HitKind = 'sky';
     let bestDist = Infinity;
     if (terrainHit && terrainHit.distance < bestDist) { chosen = 'terrain'; bestDist = terrainHit.distance; }
     if (artifactHit && artifactHit.distance < bestDist) { chosen = 'artifact'; bestDist = artifactHit.distance; }
-    if (titleReady && titleHit && titleHit.distance < bestDist) { chosen = 'title'; bestDist = titleHit.distance; }
+    if (titleHit && titleHit.distance < bestDist) {
+      chosen = titleHit.kind === 'face' ? 'title' : 'title-shadow';
+      bestDist = titleHit.distance;
+    }
 
     if (chosen === 'terrain' && terrainHit) {
       const lambert = Math.max(0, -dot(terrainHit.normal, ray.direction));
@@ -76,11 +78,17 @@ export function renderFrame(
         depth: Math.min(1, artifactHit.distance / sceneScale),
       };
     } else if (chosen === 'title' && titleHit) {
-      const proximity = Math.max(0, Math.min(1, 1 - titleHit.distance / sceneScale));
       cells[k] = {
-        glyph: titleHit.glyph,
-        luminance: proximity,
+        glyph: ' ',
+        luminance: titleHit.density / 9,
         hitKind: 'title',
+        depth: Math.min(1, titleHit.distance / sceneScale),
+      };
+    } else if (chosen === 'title-shadow' && titleHit) {
+      cells[k] = {
+        glyph: ' ',
+        luminance: 0.35,
+        hitKind: 'title-shadow',
         depth: Math.min(1, titleHit.distance / sceneScale),
       };
     } else {

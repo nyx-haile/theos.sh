@@ -45,25 +45,41 @@ describe('surface-cells base contributor', () => {
     expect(cell.value).toBeGreaterThan(0);
   });
 
-  it('routes title hits through face layer with accent-tinted HSV', () => {
+  it('routes title face hits through face layer without charOverride (palette picks glyph)', () => {
     const seed = new Uint8Array(32).fill(5);
     const scheme = generateColorScheme(seed);
     const app = new Applicator({ seed, scheme, rows: 1, cols: 1, cellW: 10, cellH: 10, renderer: makeCanvas() });
-    const frameRef: FrameRef = { cells: [makeShaded('title', 't', 0.9)], cellsWide: 1, cellsHigh: 1 };
+    // luminance carries raw-density/9 in the new contract.
+    const frameRef: FrameRef = { cells: [makeShaded('title', ' ', 4 / 9)], cellsWide: 1, cellsHigh: 1 };
     createSurfaceCellsEffect(frameRef).register(app);
     app.boot();
     app.tickFrame(16);
     const cell = (app as any).pipeline.frame[0];
     expect(cell.layer).toBe('face');
-    expect(cell.charOverride).toBe('t');
+    expect(cell.charOverride).toBeUndefined();
+    expect(cell.density).toBeCloseTo(4 / 4, 5);
     expect(cell.value).toBeGreaterThan(0);
+  });
+
+  it('routes title-shadow hits through shadow layer with density 0.35', () => {
+    const seed = new Uint8Array(32).fill(13);
+    const scheme = generateColorScheme(seed);
+    const app = new Applicator({ seed, scheme, rows: 1, cols: 1, cellW: 10, cellH: 10, renderer: makeCanvas() });
+    const frameRef: FrameRef = { cells: [makeShaded('title-shadow', ' ', 0.35)], cellsWide: 1, cellsHigh: 1 };
+    createSurfaceCellsEffect(frameRef).register(app);
+    app.boot();
+    app.tickFrame(16);
+    const cell = (app as any).pipeline.frame[0];
+    expect(cell.layer).toBe('shadow');
+    expect(cell.charOverride).toBeUndefined();
+    expect(cell.density).toBeCloseTo(0.35, 5);
   });
 
   it('title saturation scales with saturation-field multiplier', () => {
     const seed = new Uint8Array(32).fill(11);
     const scheme = generateColorScheme(seed);
     const app = new Applicator({ seed, scheme, rows: 1, cols: 1, cellW: 10, cellH: 10, renderer: makeCanvas() });
-    const frameRef: FrameRef = { cells: [makeShaded('title', 'e', 0.8)], cellsWide: 1, cellsHigh: 1 };
+    const frameRef: FrameRef = { cells: [makeShaded('title', ' ', 4 / 9)], cellsWide: 1, cellsHigh: 1 };
     createSurfaceCellsEffect(frameRef).register(app);
     // Prime saturation field with a known multiplier before boot fires the contributor.
     app.on('fieldsReady', () => { app.context().satField[0] = 0.25; }, { priority: 999 });

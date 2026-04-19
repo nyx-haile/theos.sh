@@ -32,7 +32,7 @@ export function createGame(seed: Uint8Array, initial: TunablesShape = defaultTun
   let gridN: number = tunables.materializer.heightGridN;
   let grid: Float32Array = materializeHeightGrid(backend, gridN);
   let artifacts: Artifact[] = placeArtifacts(seed, tunables, backend);
-  let title: TitleMarker = createTitleMarker(tunables);
+  let title: TitleMarker = createTitleMarker(tunables, seed);
   const player = createPlayer();
   const heightSampler = (u: number, v: number) => sampleGridPeriodic(grid, gridN, u, v);
   let elapsedMs = 0;
@@ -42,7 +42,7 @@ export function createGame(seed: Uint8Array, initial: TunablesShape = defaultTun
     gridN = tunables.materializer.heightGridN;
     grid = materializeHeightGrid(backend, gridN);
     artifacts = placeArtifacts(seed, tunables, backend);
-    title = createTitleMarker(tunables);
+    title = createTitleMarker(tunables, seed);
   }
 
   return {
