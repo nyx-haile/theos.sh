@@ -22,7 +22,7 @@ afterAll(async () => {
 describe('game flow', () => {
   it('title boots, walking can reveal hint, Enter opens detail, Esc closes', async () => {
     const page: Page = await browser.newPage();
-    await page.goto(`http://127.0.0.1:${serverPort}/`, { waitUntil: 'networkidle0' });
+    await page.goto(`http://127.0.0.1:${serverPort}/?pipeline=legacy`, { waitUntil: 'networkidle0' });
 
     // Verify canvas rendered
     const canvas = await page.$('canvas');
