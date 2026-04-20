@@ -1,5 +1,6 @@
 import { Xoshiro256 } from '../manifold/prng';
 import type { Seed } from '../manifold/types';
+import { concatBytes, encode, sha256, SEPARATOR } from '../crypto/hash';
 
 export interface RGBColor { r: number; g: number; b: number; }
 
@@ -32,7 +33,8 @@ function hslToRgb(h: number, s: number, l: number): RGBColor {
 }
 
 export function generateColorScheme(seed: Seed): ColorScheme {
-  const prng = new Xoshiro256(new Uint8Array(seed));
+  const subSeed = sha256(concatBytes(new Uint8Array(seed), SEPARATOR, encode('color-scheme')));
+  const prng = new Xoshiro256(subSeed);
   const baseHue = prng.nextFloat() * 360;
   return {
     background: hslToRgb(baseHue, 0.18, 0.07),

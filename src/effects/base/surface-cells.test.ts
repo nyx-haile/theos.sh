@@ -27,8 +27,9 @@ describe('surface-cells base contributor', () => {
     const cell1 = pipeline.frame[1];
     expect(cell0.charOverride).toBe('#');
     expect(cell0.layer).toBe('face');
-    expect(cell1.charOverride).toBe(' ');
-    expect(cell1.layer).toBe('void');
+    // Sky cells are left untouched so background-wave's contribution survives.
+    expect(cell1.charOverride).toBeUndefined();
+    expect(cell1.layer).toBe('bg');
   });
 
   it('marks artifact hits as shadow layer with scheme.secondary-tinted HSV', () => {

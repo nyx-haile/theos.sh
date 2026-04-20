@@ -55,12 +55,8 @@ export function createSurfaceCellsEffect(frameRef: FrameRef): Effect {
           const b = Math.min(1, s.b * baseScale / 255);
           const [h, sa, v] = rgbToHsv(r, g, b);
           cell.hue = h; cell.saturation = sa * satAt; cell.value = v;
-        } else {
-          cell.charOverride = sc.glyph;
-          cell.layer = 'void';
-          cell.density = 0;
-          cell.value = 0;
         }
+        // Sky and any other hitKind: leave background-wave's contribution intact.
       }, { priority: 250 });
     },
   };

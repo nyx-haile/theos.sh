@@ -1,3 +1,3 @@
-// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
 
-exports[`surface walk scene with effects visual walk frame is colored and deterministic for seed=bb 1`] = `"72b4f8964157dcbc"`;
+exports[`surface walk scene with effects visual walk frame is colored and deterministic for seed=bb 1`] = `"1874d70d81bce786"`;
