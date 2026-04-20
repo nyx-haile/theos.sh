@@ -44,8 +44,17 @@ export function makeRays(m: ManifoldBackend, pose: Pose, vp: Viewport, eyeOffset
     cosP*fwdTan[1] + sinP*n[1],
     cosP*fwdTan[2] + sinP*n[2],
   ]);
-  // Right vector is perpendicular to (fwd, n-post-pitch). Use cross with up=n for stability.
-  const right = norm(cross(fwd, n));
+  // Right vector is perpendicular to fwd. Anchor to world-up on the upper
+  // hemisphere (n·ẑ > 0) so the world horizon renders level; smoothly fall
+  // back to surface-normal reference as the player crosses to the underside,
+  // where world-up would flip the camera. Guards against refUp ∥ fwd
+  // (looking straight up/down) by reverting to the surface-normal basis.
+  const worldUp: Vec3 = [0, 0, 1];
+  const w = Math.max(0, Math.min(1, (n[2] - 0.2) / 0.5));
+  const refUp: Vec3 = [(1 - w) * n[0], (1 - w) * n[1], (1 - w) * n[2] + w];
+  const rcf = cross(fwd, refUp);
+  const rcfMag = Math.hypot(rcf[0], rcf[1], rcf[2]);
+  const right = rcfMag < 1e-3 ? norm(cross(fwd, n)) : norm(rcf);
   const up = norm(cross(right, fwd));
 
   const fovRad = (vp.fovDeg * Math.PI) / 180;
