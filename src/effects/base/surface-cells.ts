@@ -36,11 +36,13 @@ export function createSurfaceCellsEffect(frameRef: FrameRef): Effect {
           const [h, sa, v] = rgbToHsv(r, g, b);
           cell.hue = h; cell.saturation = sa; cell.value = v;
         } else if (sc.hitKind === 'title') {
-          // Density-indexed glyph via charset-variant palette — no charOverride.
+          // Solid block glyph + bright secondary tint so the billboard reads against any
+          // palette/scheme combo — terrain fidelity was eating the palette-picked glyph.
           cell.layer = 'face';
+          cell.charOverride = '█';
           const rawDensity = sc.luminance * 9;
-          cell.density = rawDensity / 4;
-          const baseScale = 1.8 + rawDensity * 0.12;
+          cell.density = 1;
+          const baseScale = 2.2 + rawDensity * 0.1;
           const r = Math.min(1, s.r * baseScale / 255);
           const g = Math.min(1, s.g * baseScale / 255);
           const b = Math.min(1, s.b * baseScale / 255);

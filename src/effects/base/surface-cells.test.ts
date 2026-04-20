@@ -46,19 +46,18 @@ describe('surface-cells base contributor', () => {
     expect(cell.value).toBeGreaterThan(0);
   });
 
-  it('routes title face hits through face layer without charOverride (palette picks glyph)', () => {
+  it('routes title face hits through face layer with solid block glyph', () => {
     const seed = new Uint8Array(32).fill(5);
     const scheme = generateColorScheme(seed);
     const app = new Applicator({ seed, scheme, rows: 1, cols: 1, cellW: 10, cellH: 10, renderer: makeCanvas() });
-    // luminance carries raw-density/9 in the new contract.
     const frameRef: FrameRef = { cells: [makeShaded('title', ' ', 4 / 9)], cellsWide: 1, cellsHigh: 1 };
     createSurfaceCellsEffect(frameRef).register(app);
     app.boot();
     app.tickFrame(16);
     const cell = (app as any).pipeline.frame[0];
     expect(cell.layer).toBe('face');
-    expect(cell.charOverride).toBeUndefined();
-    expect(cell.density).toBeCloseTo(4 / 4, 5);
+    expect(cell.charOverride).toBe('█');
+    expect(cell.density).toBe(1);
     expect(cell.value).toBeGreaterThan(0);
   });
 

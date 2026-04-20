@@ -48,9 +48,16 @@ export function renderFrame(
     let bestDist = Infinity;
     if (terrainHit && terrainHit.distance < bestDist) { chosen = 'terrain'; bestDist = terrainHit.distance; }
     if (artifactHit && artifactHit.distance < bestDist) { chosen = 'artifact'; bestDist = artifactHit.distance; }
-    if (titleHit && titleHit.distance < bestDist) {
-      chosen = titleHit.kind === 'face' ? 'title' : 'title-shadow';
-      bestDist = titleHit.distance;
+    if (titleHit) {
+      // Title face wins over terrain unconditionally — the diegetic billboard must stay
+      // legible even when tube peaks sit in the line of sight. Artifacts still beat it.
+      if (titleHit.kind === 'face' && chosen !== 'artifact') {
+        chosen = 'title';
+        bestDist = titleHit.distance;
+      } else if (titleHit.distance < bestDist) {
+        chosen = titleHit.kind === 'face' ? 'title' : 'title-shadow';
+        bestDist = titleHit.distance;
+      }
     }
 
     if (chosen === 'terrain' && terrainHit) {
