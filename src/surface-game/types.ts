@@ -32,7 +32,6 @@ export interface ShadedCell {
   luminance: number;     // 0..1, the shaded * falloff * contour scalar for terrain,
                          //       or artifact proximity scalar for artifact cells; 0 for sky
   hitKind: HitKind;
-  depth: number;         // 0..1, normalized by sceneScale; sky = 1
 }
 
 export interface Frame {

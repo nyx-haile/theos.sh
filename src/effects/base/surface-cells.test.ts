@@ -10,7 +10,7 @@ function makeCanvas(): Renderer {
 }
 
 function makeShaded(kind: ShadedCell['hitKind'], glyph: string, luminance: number): ShadedCell {
-  return { glyph, luminance, hitKind: kind, depth: 0.5 };
+  return { glyph, luminance, hitKind: kind };
 }
 
 describe('surface-cells base contributor', () => {

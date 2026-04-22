@@ -19,13 +19,13 @@ describe('renderFrame', () => {
   it('returns a frame of the configured dimensions', () => {
     const pose = makePose(0.5, 0.5, 0, 0);
     const frame = renderFrame(m, artifacts, pose, t);
+    const firstCell = frame.cells[0]!;
     expect(frame.cellsWide).toBe(t.renderer.cellsWide);
     expect(frame.cellsHigh).toBe(t.renderer.cellsHigh);
     expect(frame.cells.length).toBe(frame.cellsWide * frame.cellsHigh);
-    expect(frame.cells[0].glyph).toBe(' ');
-    expect(frame.cells[0].hitKind).toBe('sky');
-    expect(frame.cells[0].luminance).toBe(0);
-    expect(frame.cells[0].depth).toBe(1);
+    expect(firstCell.glyph).toBe(' ');
+    expect(firstCell.hitKind).toBe('sky');
+    expect(firstCell.luminance).toBe(0);
   });
 
   it('frame glyphs are all strings of length 1', () => {

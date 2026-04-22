@@ -74,7 +74,6 @@ export function renderFrame(
         glyph: luminanceGlyph(luminance, t.glyphs.luminanceRamp),
         luminance,
         hitKind: 'terrain',
-        depth: Math.min(1, terrainHit.distance / sceneScale),
       };
     } else if (chosen === 'artifact' && artifactHit) {
       const proximity = Math.max(0, Math.min(1, 1 - artifactHit.distance / sceneScale));
@@ -82,24 +81,21 @@ export function renderFrame(
         glyph: artifactGlyph(artifactHit.distance, t.glyphs.artifactGlyphsNear, t.glyphs.artifactGlyphFar, sceneScale),
         luminance: proximity,
         hitKind: 'artifact',
-        depth: Math.min(1, artifactHit.distance / sceneScale),
       };
     } else if (chosen === 'title' && titleHit) {
       cells[k] = {
         glyph: ' ',
         luminance: titleHit.density / 9,
         hitKind: 'title',
-        depth: Math.min(1, titleHit.distance / sceneScale),
       };
     } else if (chosen === 'title-shadow' && titleHit) {
       cells[k] = {
         glyph: ' ',
         luminance: 0.35,
         hitKind: 'title-shadow',
-        depth: Math.min(1, titleHit.distance / sceneScale),
       };
     } else {
-      cells[k] = { glyph: ' ', luminance: 0, hitKind: 'sky', depth: 1 };
+      cells[k] = { glyph: ' ', luminance: 0, hitKind: 'sky' };
     }
   }
 
