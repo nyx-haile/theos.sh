@@ -13,6 +13,10 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     include: ['tests/integration/**/*.test.ts', 'server/**/*.test.ts'],
+    pool: 'forks',
+    fileParallelism: false,
+    maxWorkers: 1,
+    minWorkers: 1,
     testTimeout: 10_000,
   },
 });

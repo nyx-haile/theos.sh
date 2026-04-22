@@ -1,28 +1,25 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import puppeteer, { type Browser, type Page } from 'puppeteer';
-import { spawn, type ChildProcess } from 'node:child_process';
+import type { Browser, Page } from 'puppeteer';
+import { connectVisualBrowser, getVisualBaseUrl } from './harness';
 
 let browser: Browser;
-let dev: ChildProcess;
-const serverPort = 13001;
+let baseUrl: string;
 
 beforeAll(async () => {
-  dev = spawn('bun', ['run', 'dev', '--port', String(serverPort)], { stdio: 'pipe' });
-  await new Promise<void>((resolve) => {
-    dev.stdout?.on('data', (b: Buffer) => { if (b.toString().includes('ready')) resolve(); });
-  });
-  browser = await puppeteer.launch({ args: ['--no-sandbox'] });
+  baseUrl = getVisualBaseUrl();
+  browser = await connectVisualBrowser();
 }, 30_000);
 
 afterAll(async () => {
-  await browser?.close();
-  dev?.kill('SIGTERM');
+  browser?.disconnect();
 });
 
 describe('game flow', () => {
   it('title boots, walking can reveal hint, Enter opens detail, Esc closes', async () => {
     const page: Page = await browser.newPage();
-    await page.goto(`http://127.0.0.1:${serverPort}/?pipeline=legacy`, { waitUntil: 'networkidle0' });
+    await page.goto(`${baseUrl}/?pipeline=legacy`, { waitUntil: 'load' });
+    // Give the legacy pipeline a moment to boot (session open + visibility fetch + rAF).
+    await new Promise(r => setTimeout(r, 1500));
 
     // Verify canvas rendered
     const canvas = await page.$('canvas');
@@ -30,7 +27,7 @@ describe('game flow', () => {
 
     // Walk in all four directions to try to find the artifact hint
     // The artifact is at seed-derived distance ~8 from origin
-    const directions = ['d', 'w', 'a', 's'];
+    const directions = ['d', 'w', 'a', 's'] as const;
     let hintFound = false;
 
     for (const dir of directions) {

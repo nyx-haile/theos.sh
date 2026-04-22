@@ -1,26 +1,10 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import puppeteer, { type Browser, type Page } from 'puppeteer';
-import { spawn, type ChildProcess } from 'node:child_process';
+import type { Browser, Page } from 'puppeteer';
+import { openVisualPage, waitForTheos } from './harness';
 
-let server: ChildProcess;
 let browser: Browser;
 let page: Page;
-
-async function waitForServer(url: string, timeoutMs = 15000): Promise<void> {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    try {
-      const r = await fetch(url);
-      if (r.ok) return;
-    } catch {}
-    await new Promise(r => setTimeout(r, 200));
-  }
-  throw new Error(`server at ${url} did not start in ${timeoutMs}ms`);
-}
-
-async function waitForTheos(page: Page, timeoutMs = 5000): Promise<void> {
-  await page.waitForFunction(() => !!(window as any).theos?.test, { timeout: timeoutMs });
-}
+let baseUrl: string;
 
 async function canvasNonEmpty(page: Page): Promise<boolean> {
   return await page.evaluate(() => {
@@ -54,17 +38,12 @@ async function canvasSnapshot(page: Page): Promise<string> {
 
 describe('surface entry visual smoke', () => {
   beforeAll(async () => {
-    server = spawn('bun', ['run', 'dev'], { stdio: 'pipe', detached: false });
-    await waitForServer('http://localhost:3000/surface/');
-    browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
-    page = await browser.newPage();
+    ({ browser, page, baseUrl } = await openVisualPage());
   }, 30000);
 
   afterAll(async () => {
-    await browser?.close();
-    if (server && !server.killed) {
-      server.kill('SIGTERM');
-    }
+    await page?.close();
+    browser?.disconnect();
   });
 
   it('boots without console errors and renders non-empty canvas', async () => {
@@ -78,7 +57,7 @@ describe('surface entry visual smoke', () => {
       errors.push(text);
     });
 
-    await page.goto('http://localhost:3000/surface/?seed=2a&testClock=1', { waitUntil: 'domcontentloaded' });
+    await page.goto(`${baseUrl}/surface/?seed=2a&testClock=1`, { waitUntil: 'domcontentloaded' });
     await waitForTheos(page);
 
     // Advance one frame to let the renderer paint the canvas.

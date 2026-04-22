@@ -1,31 +1,25 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import puppeteer, { type Browser, type Page } from 'puppeteer';
-import { spawn, type ChildProcess } from 'node:child_process';
+import type { Browser, Page } from 'puppeteer';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { openVisualPage } from './harness';
 
-const PORT = 3737;
 const UPDATE = process.env.UPDATE_VISUAL === '1';
 const BASELINE = join(process.cwd(), 'tests', 'fixtures', 'landing-baseline.png');
 
-let dev: ChildProcess; let browser: Browser; let page: Page;
+let baseUrl: string;
+let browser: Browser;
+let page: Page;
 
 beforeAll(async () => {
-  dev = spawn('bun', ['run', 'dev', '--port', String(PORT)], { stdio: 'pipe' });
-  await new Promise<void>((resolve) => {
-    const onData = (buf: Buffer) => { if (buf.toString().includes('ready')) resolve(); };
-    dev.stdout?.on('data', onData);
-  });
-  browser = await puppeteer.launch();
-  page = await browser.newPage();
-  await page.setViewport({ width: 1280, height: 720 });
-  await page.goto(`http://localhost:${PORT}/?pipeline=legacy`, { waitUntil: 'load' });
+  ({ baseUrl, browser, page } = await openVisualPage({ width: 1280, height: 720 }));
+  await page.goto(`${baseUrl}/?pipeline=legacy`, { waitUntil: 'load' });
   await new Promise((r) => setTimeout(r, 3000));
 }, 60_000);
 
 afterAll(async () => {
-  await browser?.close();
-  dev?.kill('SIGTERM');
+  await page?.close();
+  browser?.disconnect();
 });
 
 describe('landing smoke', () => {
