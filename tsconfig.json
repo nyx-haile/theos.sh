@@ -5,6 +5,7 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "types": ["@webgpu/types"],
+    "skipLibCheck": true,
     "jsx": "preserve",
     "jsxImportSource": "solid-js",
     "strict": true,

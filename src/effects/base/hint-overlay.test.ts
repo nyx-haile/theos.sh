@@ -20,6 +20,8 @@ function mockCtx(cols: number, rows: number): RenderContext {
     sampleFace: () => 0,
     frame: { elapsed: 0, dt: 16, timePhase: 0 },
     hc: false,
+    viewportCol: 0,
+    viewportRow: 0,
   };
 }
 

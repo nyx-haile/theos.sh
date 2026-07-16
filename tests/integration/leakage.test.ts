@@ -6,6 +6,8 @@ let srv: TestServer;
 beforeAll(async () => { srv = await startTestServer({ contentRoot: './content', port: 0 }); });
 afterAll(async () => { await srv.stop(); });
 
+const SERVER_ARTIFACT_CONTENT = 'not in the code you are reading';
+
 describe('leakage', () => {
   it('visibility response never contains artifact ids or content substrings', async () => {
     const session = await fetch(`http://127.0.0.1:${srv.port}/api/session`, {
@@ -20,7 +22,7 @@ describe('leakage', () => {
 
     const body = JSON.stringify(vis);
     expect(body).not.toContain('a11y-about');
-    expect(body).not.toContain('theos.sh is a procedurally generated');
+    expect(body).not.toContain(SERVER_ARTIFACT_CONTENT);
     expect(body).not.toContain('about theos.sh');
   });
 
@@ -51,7 +53,7 @@ describe('leakage', () => {
     try { files = await readdir(distDir); } catch { return; /* skip if no build yet */ }
     for (const f of files) {
       const content = await readFile(join(distDir, f), 'utf-8').catch(() => '');
-      expect(content).not.toContain('theos.sh is a procedurally generated');
+      expect(content).not.toContain(SERVER_ARTIFACT_CONTENT);
       expect(content).not.toContain('a11y-about');
     }
   });

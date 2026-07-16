@@ -6,7 +6,7 @@ const require = createRequire(import.meta.url);
 const libsodiumCjs = require.resolve('libsodium-wrappers');
 
 export default defineConfig({
-  plugins: [solid({ ssr: false })],
+  plugins: [solid({ ssr: false })] as any,
   resolve: {
     conditions: ['browser', 'development'],
     alias: {

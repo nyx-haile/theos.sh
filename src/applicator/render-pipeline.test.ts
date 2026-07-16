@@ -16,6 +16,8 @@ function makeCtx(rows: number, cols: number): RenderContext {
     sampleFace(col, row) { return this.rawFacePixels[row * this.cols + col] ?? 0; },
     frame: { elapsed: 0, dt: 0, timePhase: 0 },
     hc: false,
+    viewportCol: 0,
+    viewportRow: 0,
   };
 }
 

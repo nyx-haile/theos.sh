@@ -26,8 +26,12 @@ export async function startTestServer(opts: ServerOptions): Promise<TestServer> 
   const ctx: Ctx = { registry, sessions, keypair };
 
   // Use Bun.serve when available, fall back to node:http for vitest
-  if (typeof globalThis.Bun !== 'undefined') {
-    const server = Bun.serve({
+  const BunGlobal = (globalThis as any).Bun as
+    | undefined
+    | { serve: (opts: { port: number; fetch: (req: Request) => Promise<Response> | Response }) => { port: number; stop: (force?: boolean) => Promise<void> } };
+
+  if (BunGlobal?.serve) {
+    const server = BunGlobal.serve({
       port: opts.port,
       fetch: (req: Request) => handle(req, ctx),
     });
@@ -166,7 +170,7 @@ function hexToBytes(hex: string): Uint8Array {
   return out;
 }
 
-if (import.meta.main) {
+if ((import.meta as { main?: boolean }).main) {
   const port = Number(process.env.PORT ?? 3001);
   startTestServer({ contentRoot: './content', port }).then((s) => {
     console.log(`server listening on http://127.0.0.1:${s.port}`);
