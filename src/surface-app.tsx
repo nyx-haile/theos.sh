@@ -1,18 +1,12 @@
-import { createSignal, onCleanup, onMount, Show } from 'solid-js';
+import { onCleanup, onMount } from 'solid-js';
 import { createGame } from './surface-game/loop';
 import { applyKeys, type KeyState } from './surface-game/player';
-import { DetailView, type DetailClient } from './game/detail-view';
 import { generateColorScheme } from './color/scheme';
 import { ASCIIRenderer } from './renderers/ascii';
 import { Applicator } from './applicator';
 import { createSurfaceCellsEffect } from './effects/base/surface-cells';
 import { WALK_SCENE_EFFECTS } from './effects/registry';
 import type { Frame } from './surface-game/types';
-
-const surfaceClient: DetailClient = {
-  fetchArtifactText: async (handle) =>
-    `# artifact ${handle}\n\nyou stand on a ridge of the surface.\nthe terrain remembers nothing about you, and yet you are here.\n`,
-};
 
 function seedFromHex(hex: string): Uint8Array {
   const out = new Uint8Array(32);
@@ -29,17 +23,11 @@ export default function SurfaceApp() {
   const testClock = url.searchParams.get('testClock') === '1';
   const seed = seedFromHex(urlSeed);
   const scheme = generateColorScheme(seed);
-  const game = createGame(seed);
+  const game = createGame(seed, undefined, { includeArtifacts: false });
 
   const keys: KeyState = applyKeys({});
-  const [hintVisible, setHintVisible] = createSignal(false);
-  const [openHandle, setOpenHandle] = createSignal<string | null>(null);
 
   let canvasRef: HTMLCanvasElement | undefined;
-
-  const downMap: Record<string, keyof KeyState> = {
-    w: 'w', a: 'a', s: 's', d: 'd', q: 'q', e: 'e', r: 'r', f: 'f',
-  };
 
   let raf = 0;
   let startNow = 0;
@@ -48,28 +36,13 @@ export default function SurfaceApp() {
   let app: Applicator | null = null;
   const frameRef: Frame = { cells: [], cellsWide: 0, cellsHigh: 0 };
 
-  function onKeyDown(ev: KeyboardEvent) {
-    if (ev.key === 'Enter' && hintVisible() && !openHandle()) {
-      const near = game.nearestArtifact();
-      if (near) setOpenHandle(`surface-${near.artifact.id}`);
-      return;
-    }
-    const k = downMap[ev.key.toLowerCase()];
-    if (k) keys[k] = true;
-  }
-  function onKeyUp(ev: KeyboardEvent) {
-    const k = downMap[ev.key.toLowerCase()];
-    if (k) keys[k] = false;
-  }
-
   function renderOneFrame(elapsedMs: number, dt: number): void {
-    if (!openHandle()) game.tick(dt, keys);
+    game.tick(dt, keys);
     const frame = game.frame();
     frameRef.cells = frame.cells;
     frameRef.cellsWide = frame.cellsWide;
     frameRef.cellsHigh = frame.cellsHigh;
     app?.tickFrame(elapsedMs);
-    setHintVisible(game.nearestArtifact() !== null);
   }
 
   function loop(now: number) {
@@ -118,8 +91,6 @@ export default function SurfaceApp() {
 
     document.body.style.background = `rgb(${scheme.background.r},${scheme.background.g},${scheme.background.b})`;
 
-    window.addEventListener('keydown', onKeyDown);
-    window.addEventListener('keyup', onKeyUp);
     if (testClock) {
       renderOneFrame(0, 0);
     } else {
@@ -129,31 +100,21 @@ export default function SurfaceApp() {
     }
   });
   onCleanup(() => {
-    window.removeEventListener('keydown', onKeyDown);
-    window.removeEventListener('keyup', onKeyUp);
     cancelAnimationFrame(raf);
     app?.dispose();
   });
 
   return (
-    <>
-      <canvas
-        ref={canvasRef}
-        style={{
-          display: 'block',
-          width: '100vw',
-          height: '100vh',
-          margin: 0,
-          padding: 0,
-          'image-rendering': 'pixelated',
-        }}
-      />
-      <Show when={hintVisible() && !openHandle()}>
-        <div data-testid="proximity-hint" style={{ display: 'none' }} />
-      </Show>
-      <Show when={openHandle()}>
-        <DetailView handle={openHandle()!} client={surfaceClient} onClose={() => setOpenHandle(null)} scheme={scheme} />
-      </Show>
-    </>
+    <canvas
+      ref={canvasRef}
+      style={{
+        display: 'block',
+        width: '100vw',
+        height: '100vh',
+        margin: 0,
+        padding: 0,
+        'image-rendering': 'pixelated',
+      }}
+    />
   );
 }

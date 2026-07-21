@@ -46,4 +46,25 @@ describe('game loop', () => {
     expect(near).not.toBeNull();
     expect(near!.distance).toBeLessThanOrEqual(Math.SQRT1_2);
   });
+
+  it('can render the title and torus without artifacts', () => {
+    const t = defaultTunables();
+    t.interaction.proximityRange = 1.0;
+    const game = createGame(seed(4), t, { includeArtifacts: false });
+    const idle = { w: false, a: false, s: false, d: false, q: false, e: false, r: false, f: false };
+
+    expect(game.nearestArtifact()).toBeNull();
+    game.tick(6.4, idle);
+    const hitKinds = new Set(game.frame().cells.map((cell) => cell.hitKind));
+    expect(hitKinds).toContain('terrain');
+    expect(hitKinds).toContain('title');
+    expect(hitKinds).not.toContain('artifact');
+
+    game.rebuild();
+    expect(game.nearestArtifact()).toBeNull();
+    const rebuiltHitKinds = new Set(game.frame().cells.map((cell) => cell.hitKind));
+    expect(rebuiltHitKinds).toContain('terrain');
+    expect(rebuiltHitKinds).toContain('title');
+    expect(rebuiltHitKinds).not.toContain('artifact');
+  });
 });

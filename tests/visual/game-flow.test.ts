@@ -14,66 +14,23 @@ afterAll(async () => {
   browser?.disconnect();
 });
 
-describe('game flow', () => {
-  it('title boots, walking can reveal hint, Enter opens detail, Esc closes', async () => {
+describe('canvas-only scene', () => {
+  it('ignores input without revealing text UI', async () => {
     const page: Page = await browser.newPage();
-    await page.goto(`${baseUrl}/?pipeline=legacy`, { waitUntil: 'load' });
-    // Give the legacy pipeline a moment to boot (session open + visibility fetch + rAF).
-    await new Promise(r => setTimeout(r, 1500));
+    await page.goto(`${baseUrl}/`, { waitUntil: 'load' });
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
-    // Verify canvas rendered
-    const canvas = await page.$('canvas');
-    expect(canvas).toBeTruthy();
+    expect(await page.$('canvas')).toBeTruthy();
+    const poseBefore = await page.evaluate(() => JSON.stringify((window as any).theos.game.player.pose));
+    await page.keyboard.down('w');
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    await page.keyboard.up('w');
+    await page.keyboard.press('Enter');
+    const poseAfter = await page.evaluate(() => JSON.stringify((window as any).theos.game.player.pose));
 
-    // Walk in all four directions to try to find the artifact hint
-    // The artifact is at seed-derived distance ~8 from origin
-    const directions = ['d', 'w', 'a', 's'] as const;
-    let hintFound = false;
-
-    for (const dir of directions) {
-      for (let i = 0; i < 15; i++) {
-        await page.keyboard.press(dir);
-        await new Promise(r => setTimeout(r, 30));
-      }
-      const hint = await page.$('[data-testid="proximity-hint"]');
-      if (hint) { hintFound = true; break; }
-    }
-
-    // If no hint found with short walks, try a longer systematic sweep
-    if (!hintFound) {
-      for (let i = 0; i < 50; i++) {
-        await page.keyboard.press('d');
-        await new Promise(r => setTimeout(r, 20));
-      }
-      for (let i = 0; i < 50; i++) {
-        await page.keyboard.press('w');
-        await new Promise(r => setTimeout(r, 20));
-      }
-    }
-
-    // The hint may or may not be found depending on the seed-derived position.
-    // If we're near it, test the full flow. Otherwise, just verify walking doesn't crash.
-    const hint = await page.$('[data-testid="proximity-hint"]');
-    if (hint) {
-      await page.keyboard.press('Enter');
-      const detail = await page.waitForSelector('[data-testid="detail-view"]', { timeout: 5_000 });
-      expect(detail).toBeTruthy();
-
-      // Wait for some text to appear (character reveal animation)
-      await new Promise(r => setTimeout(r, 500));
-      const content = await page.$('[data-testid="detail-content"]');
-      if (content) {
-        const text = await content.evaluate(el => el.textContent);
-        expect(text!.length).toBeGreaterThan(0);
-      }
-
-      // Esc closes
-      await page.keyboard.press('Escape');
-      await new Promise(r => setTimeout(r, 200));
-      const stillOpen = await page.$('[data-testid="detail-view"]');
-      expect(stillOpen).toBeNull();
-    }
-
+    expect(poseAfter).toBe(poseBefore);
+    expect(await page.$eval('body', (element) => element.innerText.trim())).toBe('');
+    expect(await page.$('a, button, input, [data-testid="proximity-hint"], [data-testid="detail-view"]')).toBeNull();
     await page.close();
-  }, 60_000);
+  }, 20_000);
 });

@@ -13,7 +13,7 @@ let page: Page;
 
 beforeAll(async () => {
   ({ baseUrl, browser, page } = await openVisualPage({ width: 1280, height: 720 }));
-  await page.goto(`${baseUrl}/?pipeline=legacy`, { waitUntil: 'load' });
+  await page.goto(`${baseUrl}/`, { waitUntil: 'load' });
   await new Promise((r) => setTimeout(r, 3000));
 }, 60_000);
 

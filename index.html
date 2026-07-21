@@ -3,43 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="alternate" media="(prefers-reduced-motion: reduce)" href="/a11y/" vite-ignore>
-  <link rel="alternate" media="(prefers-contrast: more)" href="/a11y/" vite-ignore>
-  <script>
-    (function () {
-      try {
-        var key = 'theos:skipA11yRedirect';
-        if (sessionStorage.getItem(key) !== null) {
-          sessionStorage.removeItem(key);
-          return;
-        }
-        var rm = matchMedia('(prefers-reduced-motion: reduce)').matches;
-        var hc = matchMedia('(prefers-contrast: more)').matches;
-        if (rm || hc) location.replace('/a11y/');
-      } catch (e) {}
-    })();
-  </script>
-  <title>theos.sh — procedural manifold</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      background: #111111;
-      color: #e0e0e0;
-      overflow: hidden;
-    }
-
-    #app {
-      width: 100vw;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #111; overflow: hidden; }
+    #app { width: 100vw; height: 100vh; }
   </style>
 </head>
 <body>

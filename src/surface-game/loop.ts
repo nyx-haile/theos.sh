@@ -26,12 +26,23 @@ export interface Game {
   nearestArtifact: () => Proximity | null;
 }
 
-export function createGame(seed: Uint8Array, initial: TunablesShape = defaultTunables()): Game {
+export interface GameOptions {
+  includeArtifacts?: boolean;
+}
+
+export function createGame(
+  seed: Uint8Array,
+  initial: TunablesShape = defaultTunables(),
+  options: GameOptions = {},
+): Game {
   const [tunables, setTunables] = createStore<TunablesShape>(initial);
   let backend: ManifoldBackend = makeSurface(seed, tunables);
   let gridN: number = tunables.materializer.heightGridN;
   let grid: Float32Array = materializeHeightGrid(backend, gridN);
-  let artifacts: Artifact[] = placeArtifacts(seed, tunables, backend);
+  const buildArtifacts = () => options.includeArtifacts === false
+    ? []
+    : placeArtifacts(seed, tunables, backend);
+  let artifacts: Artifact[] = buildArtifacts();
   let title: TitleMarker = createTitleMarker(tunables, seed);
   // Spawn on top of the torus tube (v=0.25) so the title billboard at the
   // world origin is visible across the hole on the first frame, and orient
@@ -50,7 +61,7 @@ export function createGame(seed: Uint8Array, initial: TunablesShape = defaultTun
     backend = makeSurface(seed, tunables);
     gridN = tunables.materializer.heightGridN;
     grid = materializeHeightGrid(backend, gridN);
-    artifacts = placeArtifacts(seed, tunables, backend);
+    artifacts = buildArtifacts();
     title = createTitleMarker(tunables, seed);
   }
 

@@ -67,10 +67,8 @@ describe('surface entry visual smoke', () => {
 
     const initial = await canvasSnapshot(page);
 
-    // Press W for ~500ms (31 frames @ 16ms), assert canvas changed.
-    await page.evaluate(() => { (window as any).theos.test.setKey('w', true); });
+    // Advance the retained title and torus animation by ~500ms.
     await page.evaluate(() => { (window as any).theos.test.step(31, 16); });
-    await page.evaluate(() => { (window as any).theos.test.setKey('w', false); });
     const later = await canvasSnapshot(page);
     expect(later).not.toBe(initial);
     expect(errors).toEqual([]);
