@@ -67,4 +67,23 @@ describe('game loop', () => {
     expect(rebuiltHitKinds).toContain('title');
     expect(rebuiltHitKinds).not.toContain('artifact');
   });
+
+  it('keeps a reduced-motion title fully revealed across rebuilds', () => {
+    const game = createGame(seed(4), defaultTunables(), {
+      includeArtifacts: false,
+      titlePolicy: {
+        variant: 'classic',
+        mode: 'classic',
+        reveal: 'complete',
+        rolloutValue: 0,
+        reason: 'qa-classic',
+      },
+    });
+
+    expect(game.title.revealTotalMs).toBe(0);
+    expect(new Set(game.frame().cells.map((cell) => cell.hitKind))).toContain('title');
+    game.rebuild();
+    expect(game.title.revealTotalMs).toBe(0);
+    expect(new Set(game.frame().cells.map((cell) => cell.hitKind))).toContain('title');
+  });
 });

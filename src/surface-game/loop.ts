@@ -9,6 +9,7 @@ import { placeArtifacts } from './artifacts';
 import { createPlayer, faceTargetPose, stepPlayer, type KeyState } from './player';
 import { renderFrame } from '../renderer/ascii-raycast/render';
 import { createTitleMarker, type TitleMarker } from '../renderer/ascii-raycast/title';
+import type { TitlePolicy } from '../title-policy';
 
 export interface Proximity {
   artifact: Artifact;
@@ -28,6 +29,7 @@ export interface Game {
 
 export interface GameOptions {
   includeArtifacts?: boolean;
+  titlePolicy?: TitlePolicy;
 }
 
 export function createGame(
@@ -43,7 +45,7 @@ export function createGame(
     ? []
     : placeArtifacts(seed, tunables, backend);
   let artifacts: Artifact[] = buildArtifacts();
-  let title: TitleMarker = createTitleMarker(tunables, seed);
+  let title: TitleMarker = createTitleMarker(tunables, seed, options.titlePolicy);
   // Spawn on top of the torus tube (v=0.25) so the title billboard at the
   // world origin is visible across the hole on the first frame, and orient
   // the camera to face it.
@@ -62,7 +64,7 @@ export function createGame(
     gridN = tunables.materializer.heightGridN;
     grid = materializeHeightGrid(backend, gridN);
     artifacts = buildArtifacts();
-    title = createTitleMarker(tunables, seed);
+    title = createTitleMarker(tunables, seed, options.titlePolicy);
   }
 
   return {

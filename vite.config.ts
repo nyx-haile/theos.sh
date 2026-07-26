@@ -1,7 +1,10 @@
 import { defineConfig, type Plugin } from 'vite';
 import solid from 'vite-plugin-solid';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { needsDirRedirect, KNOWN_SUBDIRS } from './src/a11y/dir-redirect';
+
+const projectRoot = dirname(fileURLToPath(import.meta.url));
 
 /** Redirect /<subdir> → /<subdir>/ in dev so bare paths match the multi-entry
  *  build output and don't fall through Vite's SPA index.html fallback. */
@@ -40,10 +43,11 @@ export default defineConfig({
     minify: 'esbuild',
     rollupOptions: {
       input: {
-        main:    resolve(__dirname, 'index.html'),
-        a11y:    resolve(__dirname, 'a11y/index.html'),
-        hc:      resolve(__dirname, 'hc/index.html'),
-        surface: resolve(__dirname, 'surface/index.html'),
+        main:    resolve(projectRoot, 'index.html'),
+        a11y:    resolve(projectRoot, 'a11y/index.html'),
+        hc:      resolve(projectRoot, 'hc/index.html'),
+        surface: resolve(projectRoot, 'surface/index.html'),
+        scribe:  resolve(projectRoot, 'playground/scribe/index.html'),
       },
     },
   },

@@ -84,4 +84,12 @@ describe('server endpoints', () => {
     });
     expect(status).toBe(400);
   });
+
+  it('redirects the bare Scribe route without dropping its seed', async () => {
+    const response = await fetch(`http://127.0.0.1:${srv.port}/playground/scribe?seed=2a`, {
+      redirect: 'manual',
+    });
+    expect(response.status).toBe(301);
+    expect(response.headers.get('location')).toBe('/playground/scribe/?seed=2a');
+  });
 });

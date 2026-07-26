@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="An interactive prototype for placing glyphs by directional raycast contact." />
+    <title>Cast — Raycast kerning lab</title>
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="masthead">
+        <div>
+          <p class="eyebrow">Directional spacing study / 01</p>
+          <h1>Cast</h1>
+        </div>
+        <p class="lede">Place each glyph where its backwards shadow first meets the silhouette before it. Change the light, change the rhythm.</p>
+      </header>
+
+      <section class="workspace" aria-label="Raycast kerning workspace">
+        <aside class="controls">
+          <div class="controls-inner">
+            <div class="control-group">
+              <p class="section-label">Specimen</p>
+              <label class="field" for="sample-text">Text
+                <input id="sample-text" type="text" value="AVATAR Way." maxlength="40" spellcheck="false" />
+              </label>
+              <label class="field" for="font-family">Font
+                <select id="font-family">
+                  <option value="Georgia, serif">Georgia</option>
+                  <option value="Arial, sans-serif">Arial</option>
+                  <option value="'Arial Black', Arial, sans-serif">Arial Black</option>
+                  <option value="'Times New Roman', Times, serif">Times New Roman</option>
+                  <option value="'Courier New', monospace">Courier New</option>
+                </select>
+              </label>
+              <label class="file-button"><span id="upload-name">Upload font</span>
+                <input id="font-upload" type="file" accept=".otf,.ttf,.woff,.woff2,font/otf,font/ttf,font/woff,font/woff2" />
+              </label>
+            </div>
+
+            <div class="control-group">
+              <p class="section-label">Ray model</p>
+              <div class="field">
+                <div class="field-label-row">
+                  <label for="shadow-angle">Angle from baseline</label>
+                  <span class="angle-readout" id="angle-value">72°</span>
+                </div>
+                <input id="shadow-angle" type="range" min="10" max="90" value="72" step="1" />
+                <div class="field-row">
+                  <span></span>
+                  <input id="shadow-angle-number" aria-label="Angle in degrees" type="number" min="10" max="90" value="72" />
+                </div>
+              </div>
+              <label class="field" for="ray-fall">Ray direction
+                <select id="ray-fall">
+                  <option value="down">Back + down</option>
+                  <option value="up">Back + up</option>
+                </select>
+              </label>
+              <label class="field" for="interaction-rule">Interaction rule
+                <select id="interaction-rule">
+                  <option value="first-touch">First touch</option>
+                  <option value="robust-edge">Robust edge</option>
+                </select>
+              </label>
+              <p class="rule-note" id="rule-description"></p>
+              <div class="field" id="tolerance-field" hidden>
+                <div class="field-label-row">
+                  <label for="outlier-tolerance">Outlier tolerance</label>
+                  <span id="tolerance-value">2%</span>
+                </div>
+                <input id="outlier-tolerance" type="range" min="0" max="12" value="2" step="0.5" />
+              </div>
+              <div class="toggle-row"><label for="show-shadows">Show swept shadows</label><input id="show-shadows" type="checkbox" checked /></div>
+              <div class="toggle-row"><label for="show-rays">Show witness rays</label><input id="show-rays" type="checkbox" checked /></div>
+              <button class="reset-button" id="reset-controls" type="button">Reset ray model</button>
+            </div>
+          </div>
+        </aside>
+
+        <div class="stage">
+          <div class="stage-topbar">
+            <div class="legend" aria-label="Canvas legend">
+              <span><i class="ink"></i>glyph</span>
+              <span><i class="shadow"></i>swept shadow</span>
+              <span><i class="contact"></i>selected contact</span>
+            </div>
+            <span id="status" aria-live="polite">Preparing font…</span>
+          </div>
+          <div class="canvas-wrap">
+            <canvas id="raycast-canvas" role="img" aria-describedby="geometry-summary">Interactive raycast-kerned text specimen.</canvas>
+            <p class="sr-only" id="geometry-summary" aria-live="polite">Preparing the raycast specimen.</p>
+          </div>
+          <div class="stage-footer">
+            <div class="pair-panel">
+              <p class="section-label">Pair witnesses</p>
+              <div class="pair-list" id="pair-list"></div>
+            </div>
+            <div class="stat-card"><span>Ink width</span><strong id="width-stat">—</strong></div>
+            <div class="stat-card"><span>Contacts</span><strong id="contact-stat">—</strong></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="comparison" aria-label="Native font spacing comparison">
+        <div class="comparison-copy">
+          <p class="section-label">Control specimen</p>
+          <p>The same font with its authored spacing and kerning.</p>
+        </div>
+        <canvas id="native-canvas" role="img" aria-label="The same text rendered with the font's authored spacing.">Native font-spacing comparison.</canvas>
+      </section>
+    </main>
+    <script type="module" src="./src/app.js"></script>
+  </body>
+</html>

@@ -7,6 +7,11 @@ import { Applicator } from './applicator';
 import { createSurfaceCellsEffect } from './effects/base/surface-cells';
 import { WALK_SCENE_EFFECTS } from './effects/registry';
 import type { Frame } from './surface-game/types';
+import {
+  browserTitleCapabilities,
+  resolveTitlePolicy,
+  titleModeFromHref,
+} from './title-policy';
 
 function seedFromHex(hex: string): Uint8Array {
   const out = new Uint8Array(32);
@@ -23,7 +28,16 @@ export default function SurfaceApp() {
   const testClock = url.searchParams.get('testClock') === '1';
   const seed = seedFromHex(urlSeed);
   const scheme = generateColorScheme(seed);
-  const game = createGame(seed, undefined, { includeArtifacts: false });
+  const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+  const titlePolicy = resolveTitlePolicy({
+    seed,
+    mode: titleModeFromHref(url.href),
+    reducedMotion,
+    capabilities: browserTitleCapabilities(
+      navigator as Navigator & { deviceMemory?: number },
+    ),
+  });
+  const game = createGame(seed, undefined, { includeArtifacts: false, titlePolicy });
 
   const keys: KeyState = applyKeys({});
 
@@ -64,6 +78,7 @@ export default function SurfaceApp() {
     (window as any).theos = {
       ...(window as any).theos,
       game,
+      titlePolicy,
       tunables: game.tunables,
       test: {
         step: stepTestFrames,

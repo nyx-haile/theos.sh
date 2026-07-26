@@ -2,6 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { createTitleMarker, intersectTitle, revealedCount, REVEAL_TOTAL_MS } from './title';
 import { defaultTunables } from '../../config/tunables';
 import type { Ray } from './ray';
+import { sha256Hex } from '../../crypto/hash';
+import type { TitlePolicy } from '../../title-policy';
+import type { ScribeRun } from '../../scribe';
 
 function seed(b: number): Uint8Array {
   const s = new Uint8Array(32);
@@ -25,6 +28,59 @@ describe('title marker', () => {
     let faceCells = 0;
     for (let i = 0; i < marker.alpha.length; i++) if (marker.alpha[i]! > 64) faceCells++;
     expect(faceCells).toBeGreaterThan(10);
+  });
+
+  it('keeps the classic seed-1 alpha and density byte-pinned', () => {
+    const marker = createTitleMarker(t, seed(1));
+    expect(sha256Hex(marker.alpha)).toBe('e34785c4f4821ae99064b30a0c1fc81292147581480dbdf4e4ad2741883992a4');
+    expect(sha256Hex(marker.density)).toBe('cacb53b76609eeee0639fc43f830e619bd21bf248491f8fbae2cb3a60464f18d');
+    expect(marker.variant).toBe('classic');
+  });
+
+  it('completes the selected renderer immediately under reduced motion', () => {
+    const policy: TitlePolicy = {
+      variant: 'classic',
+      mode: 'classic',
+      reveal: 'complete',
+      rolloutValue: 0,
+      reason: 'qa-classic',
+    };
+    const marker = createTitleMarker(t, seed(1), policy);
+    expect(marker.revealTotalMs).toBe(0);
+    expect(revealedCount(marker, 0)).toBe(marker.revealOrder.length);
+  });
+
+  it('rasterizes a validated Scribe run for the forced signature title', () => {
+    const policy: TitlePolicy = {
+      variant: 'signature',
+      mode: 'signature',
+      reveal: 'animated',
+      rolloutValue: 0,
+      reason: 'qa-signature',
+    };
+    const first = createTitleMarker(t, seed(1), policy);
+    const again = createTitleMarker(t, seed(1), policy);
+    expect(first.variant).toBe('signature');
+    expect(sha256Hex(first.alpha)).toBe(sha256Hex(again.alpha));
+    expect(sha256Hex(first.alpha)).not.toBe('e34785c4f4821ae99064b30a0c1fc81292147581480dbdf4e4ad2741883992a4');
+  });
+
+  it('falls back byte-for-byte when Scribe throws or returns invalid geometry', () => {
+    const policy: TitlePolicy = {
+      variant: 'signature',
+      mode: 'signature',
+      reveal: 'animated',
+      rolloutValue: 0,
+      reason: 'qa-signature',
+    };
+    const classic = createTitleMarker(t, seed(1));
+    const thrown = createTitleMarker(t, seed(1), policy, () => { throw new Error('broken engine'); });
+    const invalid = createTitleMarker(t, seed(1), policy, () => ({}) as ScribeRun);
+    for (const marker of [thrown, invalid]) {
+      expect(marker.variant).toBe('classic');
+      expect(marker.alpha).toEqual(classic.alpha);
+      expect(marker.density).toEqual(classic.density);
+    }
   });
 
   it('density is bounded 0..9 and positive on face cells', () => {
