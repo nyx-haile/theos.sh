@@ -2,31 +2,37 @@
   {
     "frameIndex": 0,
     "elapsed": 0,
-    "hash": "554d4c22"
+    "hash": "554d4c22",
+    "maskHash": "807d610e"
   },
   {
     "frameIndex": 1,
     "elapsed": 500,
-    "hash": "3eb3e876"
+    "hash": "3eb3e876",
+    "maskHash": "807d610e"
   },
   {
     "frameIndex": 2,
     "elapsed": 1500,
-    "hash": "71c44140"
+    "hash": "71c44140",
+    "maskHash": "807d610e"
   },
   {
     "frameIndex": 3,
     "elapsed": 3000,
-    "hash": "460ecda6"
+    "hash": "460ecda6",
+    "maskHash": "807d610e"
   },
   {
     "frameIndex": 4,
     "elapsed": 6000,
-    "hash": "17aab17b"
+    "hash": "17aab17b",
+    "maskHash": "807d610e"
   },
   {
     "frameIndex": 5,
     "elapsed": 10000,
-    "hash": "17aab17b"
+    "hash": "17aab17b",
+    "maskHash": "807d610e"
   }
 ]
