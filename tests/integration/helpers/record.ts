@@ -1,7 +1,7 @@
 import { Applicator } from '../../../src/applicator';
 import { ASCIIRenderer } from '../../../src/renderers/ascii';
 import { registerAll } from '../../../src/effects/registry';
-import { generateColorScheme } from '../../../src/color/scheme';
+import { generateColorScheme, type ColorScheme } from '../../../src/color/scheme';
 import type { Frame } from '../../../src/renderers/types';
 
 export interface Recorded {
@@ -55,11 +55,25 @@ function hashFrame(f: Frame): string {
   return h.toString(16).padStart(8, '0');
 }
 
-export function bootAndTick(seed: Uint8Array, rows: number, cols: number, ticksMs: number[]): Recorded[] {
+/**
+ * Boot the applicator for `seed` and record a frame at each tick.
+ *
+ * `schemeOverride` substitutes a colour scheme for the seed's own. Goldens are
+ * always recorded with the real scheme (omit it); the override exists so tests
+ * can prove `maskHash` is genuinely palette-independent rather than merely
+ * asserting it in a comment.
+ */
+export function bootAndTick(
+  seed: Uint8Array,
+  rows: number,
+  cols: number,
+  ticksMs: number[],
+  schemeOverride?: ColorScheme,
+): Recorded[] {
   const canvas = document.createElement('canvas');
   canvas.width = cols * 15; canvas.height = rows * 15;
   const ctx2d = canvas.getContext('2d')!;
-  const scheme = generateColorScheme(seed);
+  const scheme = schemeOverride ?? generateColorScheme(seed);
   const renderer = new ASCIIRenderer(ctx2d, 15, 15);
   const app = new Applicator({ seed, scheme, rows, cols, cellW: 15, cellH: 15, renderer });
   registerAll(app);

@@ -50,10 +50,24 @@ hypothetical — it is exactly what happened here:
 
 `maskHash` hashes `ctx.rawFacePixels`, which `text-mask` rasters once during
 boot's `buildMask` phase from mask layout, font metrics and the `fontVariation`
-weight gate. It is provably independent of the colour scheme: booting the same
-seed with a deliberately different `ColorScheme` yields an identical `maskHash`.
-So a palette-only change must leave `maskHash` untouched. If a rebaseline moves
+weight gate. It is independent of the colour scheme: booting the same seed with
+a deliberately different `ColorScheme` yields an identical `maskHash`. So a
+palette-only change must leave `maskHash` untouched. If a rebaseline moves
 `maskHash` too, the cause is geometry or font — investigate, do not rebaseline.
+
+That independence is the whole basis for reading a `hash`-only failure as "safe
+to rebaseline", so it is itself a test rather than a claim in this document —
+`maskHash is independent of the colour scheme, hash is not`. It boots one seed
+twice, once with the real scheme and once with a hand-written palette unlike any
+`generateColorScheme` output (which always derives all four colours from a single
+`baseHue`, via `bootAndTick`'s optional `schemeOverride`), then asserts:
+
+- every `hash` **differs** between the two runs — without this the test could
+  pass vacuously if the scheme stopped reaching the frame at all; and
+- every `maskHash` is **identical**.
+
+If a future change lets the palette bleed into `rawFacePixels`, that test fails
+instead of `maskHash` quietly degrading into a second copy of `hash`.
 
 The test checks `maskHash` before `hash` so the geometry failure message is the
 one that surfaces, and it checks two invariants before the `UPDATE_GOLDENS`

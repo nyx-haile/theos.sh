@@ -4,6 +4,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { bootAndTick, blankMaskHash, type Recorded } from './helpers/record';
 import { SEEDS } from '../fixtures/seeds';
+import type { ColorScheme } from '../../src/color/scheme';
 
 const UPDATE = process.env.UPDATE_GOLDENS === '1';
 const DIR = join(process.cwd(), 'tests', 'fixtures', 'goldens');
@@ -61,4 +62,43 @@ describe('golden frames', () => {
       expect(recorded).toEqual(golden);
     });
   }
+
+  // The entire value of `maskHash` rests on it being palette-independent: that
+  // is what lets a reviewer conclude "only `hash` moved, so this is the 05a430d
+  // class of change and a rebaseline is safe". Until now that property was only
+  // asserted in prose, so a refactor that let the colour scheme bleed into
+  // rawFacePixels would silently turn the guard into a second copy of `hash`.
+  // Pin it down instead.
+  it('maskHash is independent of the colour scheme, hash is not', () => {
+    const s = SEEDS[0]!;
+    // Deliberately unlike any generateColorScheme output (that always derives
+    // all four colours from one baseHue), so the boot cannot coincidentally
+    // land on the same palette.
+    const wild: ColorScheme = {
+      primary: { r: 1, g: 2, b: 3 },
+      secondary: { r: 250, g: 4, b: 200 },
+      accent: { r: 9, g: 240, b: 11 },
+      background: { r: 255, g: 255, b: 255 },
+    };
+    const real = bootAndTick(s.bytes, ROWS, COLS, ticks);
+    const swapped = bootAndTick(s.bytes, ROWS, COLS, ticks, wild);
+
+    // Non-vacuity: if the scheme never reached the frame at all, the mask being
+    // unchanged would prove nothing. Establish that the override really bites.
+    expect(
+      swapped.map((r) => r.hash),
+      'swapping the colour scheme did not change any frame hash, so this test ' +
+        'cannot demonstrate anything about palette independence — check that ' +
+        'bootAndTick still threads schemeOverride into the Applicator',
+    ).not.toEqual(real.map((r) => r.hash));
+
+    expect(
+      swapped.map((r) => r.maskHash),
+      'rawFacePixels moved when only the colour scheme changed. maskHash is no ' +
+        'longer palette-independent, so it can no longer distinguish a palette ' +
+        'rebaseline from a geometry regression (see docs/testing.md).',
+    ).toEqual(real.map((r) => r.maskHash));
+
+    expect(real[0]!.maskHash).not.toBe(blankMaskHash(ROWS, COLS));
+  });
 });
