@@ -102,3 +102,66 @@ Symptoms and reading:
 
 Noisy `Fontconfig error/warning` lines on stderr during these runs come from the
 host's `/etc/fonts` configuration and are unrelated to pass/fail.
+
+## Dev server idle memory
+
+A bug report (theos.sh-b0v) recorded the dev server sitting at **~1.7 GB RSS
+while idle**. Re-measured on 2026-08-17, on `core` at d29d51a (immediately after
+the Phase 3 legacy-pipeline deletion, which removed 20 modules from the graph).
+**It did not reproduce** — idle RSS is roughly an order of magnitude lower.
+
+### Method
+
+Vite is spawned into its own process group and the RSS of *every* process in
+that group is read from `/proc/<pid>/stat` every 30 s for ~22 min. Three
+conditions, run concurrently on separate ports:
+
+| Condition | Client | Heap flag | Peak RSS | Settled RSS | Drift |
+|---|---|---|---|---|---|
+| A | loads `/`, `/surface/`, `/a11y/`, `/hc/` then idles | default | 222.3 MB | **179.2 MB** | −43.1 MB |
+| B | none ever connects | default | 216.6 MB | **176.0 MB** | −22.4 MB |
+| C | same as A | `--max-old-space-size=512` | 206.4 MB | **169.6 MB** | −36.8 MB |
+
+All three **fall** from their peak and then sit exactly flat: A is pinned at
+179.2 MB from t≈6 min through t=21.6 min. There is no upward drift over the
+20-minute window, so there is no idle leak to chase.
+
+Condition C never approached its 512 MB cap, never OOM-killed, and served
+requests normally — so a cap is not a workaround for a problem that is not
+occurring.
+
+### Attribution
+
+Vite 8 keeps **no** persistent esbuild/worker child at idle; the single node
+process holds essentially all of the RSS. Running the real `bun run dev` shows
+two processes — the `bun` wrapper plus node — totalling 189 MB, decaying to
+144 MB over 5.5 min:
+
+```
+460947  node .../node_modules/.bin/vite --port ...   173920 kB
+460945  bun run dev                                   20292 kB
+```
+
+### Why `server.watch.ignored` was not added
+
+The proposed fix was to exclude `dist/`, `.beads/`, `.omx/`, and `refs/` from
+the watcher. Measured against the live server, that is not where the memory is:
+
+- the watcher holds **492 inotify watches** against a `max_user_watches` of
+  524288 — four orders of magnitude of headroom;
+- of those 492, `dist/` accounts for **0**, `.beads/` 27, `.omx/` 10, `refs/` 1.
+  Ignoring all four would remove **38 of 492** watches.
+
+Those directories are large in *bytes* (`.omx` 64 MB, `refs` 19 MB, `.beads`
+15 MB) but hold only 149 files between them, and chokidar watches directories,
+not bytes. The change would buy ~8% of an already-negligible cost, so it was
+deliberately **not** landed — it would be inert config carrying a misleading
+implication about the cause.
+
+### If it resurfaces
+
+Re-run the measurement before assuming a leak, and capture which process grows.
+Worth ruling out first: a browser tab left open against the dev server (HMR
+retains module state per connected client), `dev:all` also running the bun API
+server, or a watcher storm from a build writing into the repo during the sample
+window.
